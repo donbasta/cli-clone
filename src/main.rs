@@ -3,6 +3,10 @@ use std::path::Path;
 use std::fs::{self};
 use std::env;
 
+use std::io::Write;
+
+use colored::*;
+
 const MANUAL: &str = "echo: repeats input
 cat: concatenate files
 ls: list directories
@@ -15,6 +19,10 @@ fn main() {
     let mut current_dir_path = Path::new(&current_dir);
 
     loop {
+        print!("{}", format!(" {} >> ", current_dir_path.display()).white().bold().on_green());
+        print!("  ");
+        io::stdout().flush().unwrap();
+
         let mut command = String::new();
 
         io::stdin().read_line(&mut command).expect("Failed to read line");
@@ -34,21 +42,21 @@ fn main() {
                     while itr < chars.len() && chars[itr] == ' ' {
                         itr += 1;
                     }
-                    println!("{}", &command[itr..command.len()]);
+                    // println!("{}", green.apply_to(&command[itr..command.len()]));
+                    println!("{}", format!("{}", &command[itr..command.len()].green()));
                 }
             },
             "pwd" => {
-                println!("{}", current_dir_path.display());
+                print!("{}", format!("{}", current_dir_path.display()).cyan());
             },
             "cd" => {
                 if tokens.len() > 2 {
-                    println!("Too many arguments");
+                    println!("{}", format!("{}", "Too many arguments".red()));
                 } else if tokens.len() == 2 {
                     let dest = tokens[1];
                     if dest == ".." {
-                        //go back to parent
                         current_dir_path = Path::new(current_dir_path).parent().unwrap();
-                    } else if dest.starts_with('/') { // case 1. dest startswith / (absolute path)
+                    } else if dest.starts_with('/') { // absolute path
                         match fs::symlink_metadata(dest) {
                             Ok(metadata) => {
                                 if metadata.is_file() {
@@ -62,8 +70,7 @@ fn main() {
                             },
                             Err(err) => eprintln!("Error: {}", err)
                         }
-                    } else if dest.starts_with("./") {
-                        // case 2. dest startswith . (relative path)
+                    } else if dest.starts_with("./") { // relative path
                         let absolute_path = current_dir_path.join(Path::new(dest.to_string().leak()));
                         println!("{}", absolute_path.display());
                         match fs::symlink_metadata(absolute_path.clone()) {
@@ -79,17 +86,19 @@ fn main() {
                             },
                             Err(err) => eprintln!("Error: {}", err)
                         }
+                    } else {
+                        println!("{}", format!("{}", "No such file or directory".red()));
                     }
-                } else {
-                    println!("No such file or directory");
                 }
             },
             "ls" => {
-                if tokens.len() == 1 {
-                    continue;
+                if tokens.len() > 2 {
+                    print!("{}", "too many arguments".red());
                 }
-                let dir_path = current_dir_path.join(Path::new(tokens[1]));
-                if let Ok(entries) = fs::read_dir(&dir_path) {
+
+                let dir_path = if tokens.len() > 1 { current_dir_path.join(Path::new(tokens[1])) } else { current_dir_path.to_path_buf() };
+                
+                if let Ok(entries) = fs::read_dir(dir_path) {
                     for entry in entries {
                         if let Ok(entry) = entry {
                             let file_name = entry.file_name();
@@ -97,7 +106,7 @@ fn main() {
                         }
                     }
                 } else {
-                    println!("Failed to read directory contents");
+                    println!("{}", format!("{}", "Failed to read directory contents".red()));
                 }
             },
             "cat" => {
