@@ -1,5 +1,5 @@
 use std::io::{self};
-use std::path::Path;
+use std::path::PathBuf;
 use std::fs::{self};
 use std::env;
 
@@ -15,9 +15,180 @@ find: locate files or directories
 grep: matches text in files
 ";
 
+const COMMANDS: [&str; 10] = [
+    "echo",
+    "pwd",
+    "cd",
+    "ls",
+    "find",
+    "grep",
+    "cat",
+    "exit",
+    "quit",
+    "man"
+];
+
+struct Variables {
+    raw_command: String,
+    tokens: Vec<String>,
+    chars: Vec<char>,
+    current_dir_path: PathBuf,
+}
+
+impl Variables {
+    pub fn new() -> Self {
+        Self {
+            raw_command: String::new(),
+            tokens: Vec::new(),
+            chars: Vec::new(),
+            current_dir_path: env::current_dir().expect("Failed to get current directory")
+        }
+    }
+
+    pub fn input_and_preprocess(&mut self) {
+        self.raw_command = String::new();
+        io::stdin().read_line(&mut self.raw_command).expect("Failed to read line");
+        self.raw_command = self.raw_command.trim_start_matches(|c| c == ' ').to_string();
+        self.tokens.clear();
+        self.tokens = self.raw_command.split_whitespace().collect::<Vec<_>>().iter().map(|&s| s.to_owned()).collect();
+        self.chars = self.raw_command.chars().collect();
+    }
+
+    pub fn empty(&self) -> bool {
+        return self.tokens.len() == 0;
+    }
+
+    pub fn get_first_token(&self) -> &str {
+        return &self.tokens[0];
+    }
+
+    pub fn get_tokens_length(&self) -> usize {
+        return self.tokens.len();
+    }
+    pub fn display_header(&self) {
+        print!("{}", format!(" {}$ ", self.current_dir_path.display()).white().bold().on_green());
+        print!("  ");
+        io::stdout().flush().unwrap();
+    }
+    pub fn run_echo(&self) {
+        if self.get_tokens_length() >= 2 {
+            let mut itr = 4;
+            while itr < self.chars.len() && self.chars[itr] == ' ' {
+                itr += 1;
+            }
+            let tmp: String = self.chars.iter().collect();
+            println!("{}", &tmp[itr..self.chars.len()].green());
+        }
+    }
+    pub fn run_pwd(&self) {
+        println!("{}", format!("{}", self.current_dir_path.display()).cyan());
+    }
+    pub fn get_token(&self, idx: usize) -> &str {
+        return &self.tokens[idx];
+    }
+    pub fn run_man(&self) {
+        let manual_detail: HashMap<&str, &str> = [
+            ("echo", "for what"),
+            ("pwd", "for what"),
+            ("cd", "for what"),
+            ("ls", "for what"),
+            ("find", "for what"),
+            ("grep", "for what"),
+            ("cat", "for what"),
+            ("exit", "for what"),
+            ("quit","for what"),
+            ("man","for what"),
+        ].iter().cloned().collect();
+
+        if self.get_tokens_length() == 1 {
+            println!("{}", "For more detailed manual for each command, type 'man <command name>'");
+            println!("");
+            println!("{}", MANUAL);
+        } else {
+            for i in 1..self.get_tokens_length() {
+                if COMMANDS.contains(&self.get_token(i)) {
+                    println!("{}", manual_detail[&self.get_token(i)]);
+                } else {
+                    println!("Command {} not found", self.get_token(i).red());
+                }
+            }
+        }
+    }
+    pub fn run_cat(&self) {
+        for i in 1..self.get_tokens_length() {
+            let mut fpath = self.current_dir_path.clone();
+            fpath.push(self.get_token(i));
+            let data = fs::read_to_string(fpath).expect("Unable to read file data");
+            println!("{}", data);
+        }
+    }
+    pub fn run_ls(&self) {
+        if self.get_tokens_length() > 2 {
+            print!("{}", "too many arguments".red());
+        }
+
+        let mut fpath = self.current_dir_path.clone();
+        if self.get_tokens_length() > 1 {
+            fpath.push(self.get_token(1));
+        }
+
+        if let Ok(entries) = fs::read_dir(fpath) {
+            for entry in entries {
+                if let Ok(entry) = entry {
+                    let file_name = entry.file_name();
+                    println!("{}", file_name.to_string_lossy());
+                }
+            }
+        } else {
+            println!("{}", format!("{}", "Failed to read directory contents".red()));
+        }
+    }
+    pub fn run_cd(&mut self) {
+        if self.get_tokens_length() > 2 {
+            println!("{}", format!("{}", "Too many arguments".red()));
+        } else if self.get_tokens_length() == 2 {
+            let dest = self.get_token(1);
+            if dest == ".." {
+                self.current_dir_path = self.current_dir_path.parent().unwrap().to_path_buf();
+            } else if dest.starts_with('/') { // absolute path
+                match fs::symlink_metadata(dest) {
+                    Ok(metadata) => {
+                        if metadata.is_file() {
+                            println!("File exists, but not a path. Can't change directory");
+                        } else if metadata.is_dir() {
+                            println!("Directory exists");
+                            self.current_dir_path = PathBuf::from(dest.to_string());
+                        } else {
+                            println!("Not a file nor a directory");
+                        }
+                    },
+                    Err(err) => eprintln!("Error: {}", err)
+                }
+            } else if dest.starts_with("./") { // relative path
+                let mut abs_path = self.current_dir_path.clone();
+                abs_path.push(dest.to_string().leak());
+                match fs::symlink_metadata(abs_path.clone()) {
+                    Ok(metadata) => {
+                        if metadata.is_file() {
+                            println!("File exists, but not a path. Can't change directory");
+                        } else if metadata.is_dir() {
+                            println!("Directory exists");
+                            self.current_dir_path = abs_path;
+                        } else {
+                            println!("Not a file nor a directory");
+                        }
+                    },
+                    Err(err) => eprintln!("Error: {}", err)
+                }
+            } else {
+                println!("{}", format!("{}", "No such file or directory".red()));
+            }
+        }
+    }
+}
+
 fn main() {
-    let current_dir = env::current_dir().expect("Failed to get current directory");
-    let mut current_dir_path = Path::new(&current_dir);
+    let mut vars = Variables::new();
 
     println!(r#"
     _____ _      _____   _                 _             _               _        
@@ -32,128 +203,29 @@ fn main() {
     println!("Made with ♥ using Rust");
     println!("Type man for list of commands");
 
-    let manual_detail: HashMap<&str, &str> = [
-        ("echo", "for what"),
-        ("pwd", "for what"),
-        ("cd", "for what"),
-        ("ls", "for what"),
-        ("find", "for what"),
-        ("grep", "for what"),
-        ("cat", "for what"),
-        ("exit", "for what"),
-        ("quit","for what"),
-        ("man","for what"),
-    ].iter().cloned().collect();
-
-    const COMMANDS: [&str; 10] = [
-        "echo",
-        "pwd",
-        "cd",
-        "ls",
-        "find",
-        "grep",
-        "cat",
-        "exit",
-        "quit",
-        "man"
-    ];
-
     loop {
-        print!("{}", format!(" {}$ ", current_dir_path.display()).white().bold().on_green());
-        print!("  ");
-        io::stdout().flush().unwrap();
+        vars.display_header();
+        vars.input_and_preprocess();
 
-        let mut command = String::new();
-
-        io::stdin().read_line(&mut command).expect("Failed to read line");
-        command = command.trim_start_matches(|c| c == ' ').to_string();
-
-        let tokens: Vec<&str> = command.split_whitespace().collect();
-        let chars: Vec<char> = command.chars().collect();
-
-        if tokens.len() == 0 {
+        if vars.empty() {
             continue;
         }
 
-        match tokens[0] {
+        match vars.get_first_token() {
             "echo" => {
-                if tokens.len() >= 2 {
-                    let mut itr = 4;
-                    while itr < chars.len() && chars[itr] == ' ' {
-                        itr += 1;
-                    }
-                    println!("{}", format!("{}", &command[itr..command.len()].green()));
-                }
+                vars.run_echo();
             },
             "pwd" => {
-                print!("{}", format!("{}", current_dir_path.display()).cyan());
+                vars.run_pwd();
             },
             "cd" => {
-                if tokens.len() > 2 {
-                    println!("{}", format!("{}", "Too many arguments".red()));
-                } else if tokens.len() == 2 {
-                    let dest = tokens[1];
-                    if dest == ".." {
-                        current_dir_path = Path::new(current_dir_path).parent().unwrap();
-                    } else if dest.starts_with('/') { // absolute path
-                        match fs::symlink_metadata(dest) {
-                            Ok(metadata) => {
-                                if metadata.is_file() {
-                                    println!("File exists, but not a path. Can't change directory");
-                                } else if metadata.is_dir() {
-                                    println!("Directory exists");
-                                    current_dir_path = Path::new(dest.to_string().leak());
-                                } else {
-                                    println!("Not a file nor a directory");
-                                }
-                            },
-                            Err(err) => eprintln!("Error: {}", err)
-                        }
-                    } else if dest.starts_with("./") { // relative path
-                        let absolute_path = current_dir_path.join(Path::new(dest.to_string().leak()));
-                        println!("{}", absolute_path.display());
-                        match fs::symlink_metadata(absolute_path.clone()) {
-                            Ok(metadata) => {
-                                if metadata.is_file() {
-                                    println!("File exists, but not a path. Can't change directory");
-                                } else if metadata.is_dir() {
-                                    println!("Directory exists");
-                                    current_dir_path = Path::new(absolute_path.to_string_lossy().into_owned().leak());
-                                } else {
-                                    println!("Not a file nor a directory");
-                                }
-                            },
-                            Err(err) => eprintln!("Error: {}", err)
-                        }
-                    } else {
-                        println!("{}", format!("{}", "No such file or directory".red()));
-                    }
-                }
+                vars.run_cd();
             },
             "ls" => {
-                if tokens.len() > 2 {
-                    print!("{}", "too many arguments".red());
-                }
-
-                let dir_path = if tokens.len() > 1 { current_dir_path.join(Path::new(tokens[1])) } else { current_dir_path.to_path_buf() };
-                
-                if let Ok(entries) = fs::read_dir(dir_path) {
-                    for entry in entries {
-                        if let Ok(entry) = entry {
-                            let file_name = entry.file_name();
-                            println!("{}", file_name.to_string_lossy());
-                        }
-                    }
-                } else {
-                    println!("{}", format!("{}", "Failed to read directory contents".red()));
-                }
+                vars.run_ls();
             },
             "cat" => {
-                for i in 1..tokens.len() {
-                    let fpath = current_dir_path.join(Path::new(tokens[i]));
-                    let data = fs::read_to_string(fpath).expect("Unable to read file data");
-                    println!("{}", data);
-                }
+                vars.run_cat();
             },
             "find" => {
                 println!("to do doing find");
@@ -166,22 +238,10 @@ fn main() {
                 std::process::exit(0);
             },
             "man" => {
-                if tokens.len() == 1 {
-                    println!("{}", "For more detailed manual for each command, type 'man <command name>'");
-                    println!("");
-                    println!("{}", MANUAL);
-                } else {
-                    for i in 1..tokens.len() {
-                        if COMMANDS.contains(&tokens[i]) {
-                            println!("{}", manual_detail[tokens[i]]);
-                        } else {
-                            println!("Command {} not found", tokens[i].red());
-                        }
-                    }
-                }
-            }
+                vars.run_man();
+            },
             &_ => {
-                println!("Command {} not found, see 'man' for help", tokens[0].red().bold());
+                println!("Command {} not found, see 'man' for help", vars.get_first_token().red().bold());
             }
         }
     }
