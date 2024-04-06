@@ -3,6 +3,7 @@ use std::path::Path;
 use std::fs::{self};
 use std::env;
 
+use std::collections::HashMap;
 use std::io::Write;
 
 use colored::*;
@@ -18,8 +19,47 @@ fn main() {
     let current_dir = env::current_dir().expect("Failed to get current directory");
     let mut current_dir_path = Path::new(&current_dir);
 
+    println!(r#"
+    _____ _      _____   _                 _             _               _        
+    / ____| |    |_   _| | |               | |           | |             | |       
+   | |    | |      | |   | |__  _   _    __| | ___  _ __ | |__   __ _ ___| |_ __ _ 
+   | |    | |      | |   | '_ \| | | |  / _` |/ _ \| '_ \| '_ \ / _` / __| __/ _` |
+   | |____| |____ _| |_  | |_) | |_| | | (_| | (_) | | | | |_) | (_| \__ \ || (_| |
+    \_____|______|_____| |_.__/ \__, |  \__,_|\___/|_| |_|_.__/ \__,_|___/\__\__,_|
+                                 __/ |                                             
+                                |___/                                             
+    "#);
+    println!("Made with ♥ using Rust");
+    println!("Type man for list of commands");
+
+    let manual_detail: HashMap<&str, &str> = [
+        ("echo", "for what"),
+        ("pwd", "for what"),
+        ("cd", "for what"),
+        ("ls", "for what"),
+        ("find", "for what"),
+        ("grep", "for what"),
+        ("cat", "for what"),
+        ("exit", "for what"),
+        ("quit","for what"),
+        ("man","for what"),
+    ].iter().cloned().collect();
+
+    const COMMANDS: [&str; 10] = [
+        "echo",
+        "pwd",
+        "cd",
+        "ls",
+        "find",
+        "grep",
+        "cat",
+        "exit",
+        "quit",
+        "man"
+    ];
+
     loop {
-        print!("{}", format!(" {} >> ", current_dir_path.display()).white().bold().on_green());
+        print!("{}", format!(" {}$ ", current_dir_path.display()).white().bold().on_green());
         print!("  ");
         io::stdout().flush().unwrap();
 
@@ -42,7 +82,6 @@ fn main() {
                     while itr < chars.len() && chars[itr] == ' ' {
                         itr += 1;
                     }
-                    // println!("{}", green.apply_to(&command[itr..command.len()]));
                     println!("{}", format!("{}", &command[itr..command.len()].green()));
                 }
             },
@@ -127,9 +166,23 @@ fn main() {
                 std::process::exit(0);
             },
             "man" => {
-                println!("{}", MANUAL);
+                if tokens.len() == 1 {
+                    println!("{}", "For more detailed manual for each command, type 'man <command name>'");
+                    println!("");
+                    println!("{}", MANUAL);
+                } else {
+                    for i in 1..tokens.len() {
+                        if COMMANDS.contains(&tokens[i]) {
+                            println!("{}", manual_detail[tokens[i]]);
+                        } else {
+                            println!("Command {} not found", tokens[i].red());
+                        }
+                    }
+                }
             }
-            &_ => todo!(),
+            &_ => {
+                println!("Command {} not found, see 'man' for help", tokens[0].red().bold());
+            }
         }
     }
 }
