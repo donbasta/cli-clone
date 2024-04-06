@@ -1,7 +1,6 @@
-use std::io;
-// use::std::fs::File;
+use std::io::{self};
 use std::path::Path;
-use std::fs;
+use std::fs::{self};
 use std::env;
 
 const MANUAL: &str = "echo: repeats input
@@ -14,7 +13,6 @@ grep: matches text in files
 fn main() {
     let current_dir = env::current_dir().expect("Failed to get current directory");
     let mut current_dir_path = Path::new(&current_dir);
-    // let mut command: String;
 
     loop {
         let mut command = String::new();
@@ -87,8 +85,11 @@ fn main() {
                 }
             },
             "ls" => {
-                if let Ok(entries) = fs::read_dir(&current_dir_path) {
-                    println!("Files in current directory:");
+                if tokens.len() == 1 {
+                    continue;
+                }
+                let dir_path = current_dir_path.join(Path::new(tokens[1]));
+                if let Ok(entries) = fs::read_dir(&dir_path) {
                     for entry in entries {
                         if let Ok(entry) = entry {
                             let file_name = entry.file_name();
@@ -100,8 +101,11 @@ fn main() {
                 }
             },
             "cat" => {
-                // let mut file = File::open()
-                println!("to do doing cat");
+                for i in 1..tokens.len() {
+                    let fpath = current_dir_path.join(Path::new(tokens[i]));
+                    let data = fs::read_to_string(fpath).expect("Unable to read file data");
+                    println!("{}", data);
+                }
             },
             "find" => {
                 println!("to do doing find");
