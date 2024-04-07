@@ -255,7 +255,7 @@ fn main() -> Result<(), String> {
     "#
     );
     println!("Made with ♥ using Rust");
-    println!("Type man for list of commands");
+    println!("Type 'man' (without the quote) for getting the list of commands");
 
     loop {
         vars.display_header();
