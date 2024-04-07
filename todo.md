@@ -1,11 +1,23 @@
-- error handling
+## Features
+
 - find
 - grep
 - touch
 - rm, cp, mv
-- text editor
-- modularity
-- colorful
+
+- flag
+
+  - ls -la
+  - check flag yang lain
+
+## Other apps
 
 - create snake game
 - bikin tetris
+- text editor
+
+## Others
+
+- testing
+- modularity and maintanability
+- colorfulness
