@@ -4,9 +4,7 @@
 - grep
 - touch
 - rm, cp, mv
-
 - flag
-
   - ls -la
   - check flag yang lain
 

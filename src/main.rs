@@ -8,6 +8,8 @@ use std::io::Write;
 
 use colored::*;
 
+use chrono::Local;
+
 const MANUAL: &str = "echo: repeats input
 cat: concatenate files
 ls: list directories
@@ -19,50 +21,41 @@ const COMMANDS: [&str; 10] = [
     "echo", "pwd", "cd", "ls", "find", "grep", "cat", "exit", "quit", "man",
 ];
 
-// fn style_output(text: &str, _vargs: &[&str]) -> ColoredString {
-//     let mut colored_text: ColoredString = text.into();
-//     for style in _vargs.iter() {
-//         match style {
-//             &"white" => colored_text = colored_text.white(),
-//             &"black" => colored_text = colored_text.black(),
-//             &"red" => colored_text = colored_text.red(),
-//             &"green" => colored_text = colored_text.green(),
-//             &"magenta" => colored_text = colored_text.magenta(),
-//             &"blue" => colored_text = colored_text.blue(),
-//             &"bold" => colored_text = colored_text.bold(),
-//             &"on_green" => colored_text = colored_text.on_green(),
-//             &_ => colored_text = colored_text.black(),
-//         }
-//     }
-//     colored_text
-// }
-
-struct Variables {
+struct CMDVariables {
     raw_command: String,
     tokens: Vec<String>,
     chars: Vec<char>,
     current_dir_path: PathBuf,
 }
 
-impl Variables {
-    pub fn new() -> Self {
-        Self {
-            raw_command: String::new(),
-            tokens: Vec::new(),
-            chars: Vec::new(),
-            current_dir_path: env::current_dir().expect("Failed to get current directory"),
+impl CMDVariables {
+    pub fn new() -> Result<Self, String> {
+        match env::current_dir() {
+            Ok(cur) => Ok(Self {
+                raw_command: String::new(),
+                tokens: Vec::new(),
+                chars: Vec::new(),
+                current_dir_path: cur,
+            }),
+            Err(err) => Err(err.to_string()),
         }
     }
 
     pub fn input_and_preprocess(&mut self) {
         self.raw_command = String::new();
-        io::stdin()
-            .read_line(&mut self.raw_command)
-            .expect("Failed to read line");
+
+        match io::stdin().read_line(&mut self.raw_command) {
+            Ok(_) => {}
+            Err(err) => {
+                eprintln!("Error when reading input: {}", err);
+            }
+        };
+
         self.raw_command = self
             .raw_command
             .trim_start_matches(|c| c == ' ')
             .to_string();
+
         self.tokens = self
             .raw_command
             .split_whitespace()
@@ -70,6 +63,7 @@ impl Variables {
             .iter()
             .map(|&s| s.to_owned())
             .collect();
+
         self.chars = self.raw_command.chars().collect();
     }
 
@@ -86,6 +80,12 @@ impl Variables {
     }
 
     pub fn display_header(&self) {
+        print!(
+            "{}",
+            format!(" {} ", Local::now().format("%Y-%m-%d %H:%M:%S").to_string())
+                .black()
+                .on_bright_yellow()
+        );
         print!(
             "{}",
             format!(" {}$ ", self.current_dir_path.display())
@@ -150,13 +150,15 @@ impl Variables {
         for i in 1..self.get_tokens_length() {
             let mut fpath = self.current_dir_path.clone();
             fpath.push(self.get_token(i));
-            let data = fs::read_to_string(fpath).expect("Unable to read file data");
-            println!("{}", data);
+            match fs::read_to_string(fpath) {
+                Ok(data) => println!("{}", data),
+                Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
+            }
         }
     }
-    pub fn run_ls(&self) {
+    pub fn run_ls(&self) -> Result<(), String> {
         if self.get_tokens_length() > 2 {
-            print!("{}", "too many arguments".red());
+            return Err("Too many arguments for ls".to_string());
         }
 
         let mut fpath = self.current_dir_path.clone();
@@ -164,27 +166,38 @@ impl Variables {
             fpath.push(self.get_token(1));
         }
 
-        if let Ok(entries) = fs::read_dir(fpath) {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let file_name = entry.file_name();
-                    println!("{}", file_name.to_string_lossy());
+        match fs::read_dir(fpath) {
+            Ok(entries) => {
+                for entry in entries {
+                    if let Ok(entry) = entry {
+                        let file_name = entry.file_name();
+                        if entry.metadata().unwrap().is_dir() {
+                            println!("{}", file_name.to_string_lossy().cyan());
+                        } else if entry.metadata().unwrap().is_file() {
+                            println!("{}", file_name.to_string_lossy().purple());
+                        } else if entry.metadata().unwrap().is_symlink() {
+                            println!("{}", file_name.to_string_lossy().yellow());
+                        }
+                    }
                 }
+                Ok(())
             }
-        } else {
-            println!(
-                "{}",
-                format!("{}", "Failed to read directory contents".red())
-            );
+            Err(err) => Err(err.to_string()),
         }
     }
-    pub fn run_cd(&mut self) {
+    pub fn run_cd(&mut self) -> Result<(), String> {
         if self.get_tokens_length() > 2 {
-            println!("{}", format!("{}", "Too many arguments".red()));
+            Err("Too many arguments".to_string())
         } else if self.get_tokens_length() == 2 {
             let dest = self.get_token(1);
             if dest == ".." {
-                self.current_dir_path = self.current_dir_path.parent().unwrap().to_path_buf();
+                match self.current_dir_path.parent() {
+                    Some(c) => {
+                        self.current_dir_path = c.to_path_buf();
+                        Ok(())
+                    }
+                    None => Err("Can't move to parent directory".to_string()),
+                }
             } else if dest.starts_with('/') {
                 // absolute path
                 match fs::symlink_metadata(dest) {
@@ -196,8 +209,9 @@ impl Variables {
                         } else {
                             println!("Not a file nor a directory");
                         }
+                        Ok(())
                     }
-                    Err(err) => eprintln!("Error: {}", err),
+                    Err(err) => Err(err.to_string()),
                 }
             } else if dest.starts_with("./") {
                 // relative path
@@ -212,18 +226,21 @@ impl Variables {
                         } else {
                             println!("Not a file nor a directory");
                         }
+                        Ok(())
                     }
-                    Err(err) => eprintln!("Error: {}", err),
+                    Err(err) => Err(err.to_string()),
                 }
             } else {
-                println!("{}", format!("{}", "No such file or directory".red()));
+                Err("No such file or directory".to_string())
             }
+        } else {
+            Ok(())
         }
     }
 }
 
-fn main() {
-    let mut vars = Variables::new();
+fn main() -> Result<(), String> {
+    let mut vars = CMDVariables::new()?;
 
     println!(
         r#"
@@ -250,33 +267,25 @@ fn main() {
 
         match vars.get_first_token() {
             "echo" => vars.run_echo(),
-            "pwd" => {
-                vars.run_pwd();
-            }
-            "cd" => {
-                vars.run_cd();
-            }
-            "ls" => {
-                vars.run_ls();
-            }
-            "cat" => {
-                vars.run_cat();
-            }
-            "find" => {
-                println!("to do doing find");
-            }
-            "grep" => {
-                println!("to do doing grep");
-            }
+            "pwd" => vars.run_pwd(),
+            "cd" => match vars.run_cd() {
+                Ok(_) => {}
+                Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
+            },
+            "ls" => match vars.run_ls() {
+                Ok(_) => {}
+                Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
+            },
+            "cat" => vars.run_cat(),
+            "find" => println!("to do doing find"),
+            "grep" => println!("to do doing grep"),
             "exit" | "quit" => {
                 println!("Exiting CLI");
                 std::process::exit(0);
             }
-            "man" => {
-                vars.run_man();
-            }
+            "man" => vars.run_man(),
             &_ => {
-                println!(
+                eprintln!(
                     "Command {} not found, see 'man' for help",
                     vars.get_first_token().red().bold()
                 );
