@@ -1,6 +1,6 @@
 ## Features
 
-- [ ] touch
+- [x] touch
 - [ ] mkdir
 - [ ] find
 - [ ] grep

@@ -1,5 +1,5 @@
 use std::env;
-use std::fs::{self, File};
+use std::fs::{self, OpenOptions};
 use std::io::{self};
 use std::path::PathBuf;
 
@@ -112,7 +112,7 @@ impl CMDVariables {
     pub fn get_token(&self, idx: usize) -> &str {
         return &self.tokens[idx];
     }
-    pub fn run_man(&self) {
+    pub fn run_man(&self) -> Result<(), String> {
         let manual_detail: HashMap<&str, &str> = [
             ("echo", "for what"),
             ("pwd", "for what"),
@@ -136,14 +136,19 @@ impl CMDVariables {
             );
             println!("");
             println!("{}", MANUAL);
-        } else {
-            for i in 1..self.get_tokens_length() {
-                if COMMANDS.contains(&self.get_token(i)) {
-                    println!("{}", manual_detail[&self.get_token(i)]);
-                } else {
-                    println!("Command {} not found", self.get_token(i).red());
-                }
+            Ok(())
+        } else if self.get_tokens_length() == 2 {
+            if COMMANDS.contains(&self.get_token(1)) {
+                println!("{}", manual_detail[&self.get_token(1)]);
+                Ok(())
+            } else {
+                Err(format!("man: Command {} not found", self.get_token(1)))
             }
+        } else {
+            Err(
+                "man: too many arguments. Type 'man man' for more detailed information."
+                    .to_string(),
+            )
         }
     }
     pub fn run_cat(&self) {
@@ -227,7 +232,7 @@ impl CMDVariables {
                                 abs_path
                             }
                         };
-                        match fs::symlink_metadata(absolute_path.clone()) {
+                        match fs::symlink_metadata(&absolute_path) {
                             Ok(metadata) => {
                                 if metadata.is_file() {
                                     println!(
@@ -275,9 +280,15 @@ impl CMDVariables {
                 match absolute_path.parent() {
                     Some(parent_path) => {
                         if parent_path.exists() {
-                            match File::create(absolute_path) {
+                            match OpenOptions::new()
+                                .write(true)
+                                .create(true)
+                                .open(&absolute_path)
+                            {
                                 Ok(_) => Ok(()),
-                                Err(err) => Err(err.to_string()),
+                                Err(err) => {
+                                    return Err(err.to_string());
+                                }
                             }
                         } else {
                             Err("touch: directory does not exist".to_string())
@@ -320,10 +331,13 @@ impl CMDVariables {
                     Ok(_) => {}
                     Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
                 },
-                "man" => self.run_man(),
+                "man" => match self.run_man() {
+                    Ok(_) => {}
+                    Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
+                },
                 &_ => {
                     eprintln!(
-                        "Command {} not found, see 'man' for help",
+                        "Error: Command {} not found, see 'man' for help",
                         self.get_first_token().red().bold()
                     );
                 }
