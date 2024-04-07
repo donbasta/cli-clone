@@ -1,5 +1,5 @@
 use std::env;
-use std::fs::{self};
+use std::fs::{self, File};
 use std::io::{self};
 use std::path::PathBuf;
 
@@ -233,6 +233,47 @@ impl CMDVariables {
             _ => Ok(()),
         }
     }
+
+    pub fn run_touch(&self) -> Result<(), String> {
+        if self.get_tokens_length() == 1 {
+            return Err(
+                "touch: missing file operand. Type 'man touch' for more information".to_string(),
+            );
+        }
+
+        let fpath = self.get_token(1);
+        if fpath.ends_with("/") {
+            return Err("touch: can't create directory with touch".to_string());
+        }
+
+        match fpath {
+            "." | ".." => Ok(()),
+            &_ => {
+                let absolute_path = match fpath {
+                    fpath if fpath.starts_with("/") => PathBuf::from(fpath.to_string()),
+                    &_ => {
+                        let mut abs_path = self.current_dir_path.clone();
+                        abs_path.push(fpath.to_string());
+                        abs_path
+                    }
+                };
+                match absolute_path.parent() {
+                    Some(parent_path) => {
+                        if parent_path.exists() {
+                            match File::create(absolute_path) {
+                                Ok(_) => Ok(()),
+                                Err(err) => Err(err.to_string()),
+                            }
+                        } else {
+                            Err("touch: directory does not exist".to_string())
+                        }
+                    }
+                    None => Err("touch: directory does not exist".to_string()),
+                }
+            }
+        }
+    }
+
     pub fn run(&mut self) {
         loop {
             self.display_header();
@@ -260,6 +301,10 @@ impl CMDVariables {
                     println!("Exiting CLI");
                     std::process::exit(0);
                 }
+                "touch" => match self.run_touch() {
+                    Ok(_) => {}
+                    Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
+                },
                 "man" => self.run_man(),
                 &_ => {
                     eprintln!(
