@@ -186,55 +186,51 @@ impl CMDVariables {
         }
     }
     pub fn run_cd(&mut self) -> Result<(), String> {
-        if self.get_tokens_length() > 2 {
-            Err("Too many arguments".to_string())
-        } else if self.get_tokens_length() == 2 {
-            let dest = self.get_token(1);
-            if dest == ".." {
-                match self.current_dir_path.parent() {
-                    Some(c) => {
-                        self.current_dir_path = c.to_path_buf();
-                        Ok(())
-                    }
-                    None => Err("Can't move to parent directory".to_string()),
-                }
-            } else if dest.starts_with('/') {
-                // absolute path
-                match fs::symlink_metadata(dest) {
-                    Ok(metadata) => {
-                        if metadata.is_file() {
-                            println!("File exists, but not a path. Can't change directory");
-                        } else if metadata.is_dir() {
-                            self.current_dir_path = PathBuf::from(dest.to_string());
-                        } else {
-                            println!("Not a file nor a directory");
+        match self.get_tokens_length() {
+            len if len > 2 => Err("Too many arguments".to_string()),
+            len if len == 2 => {
+                let dest = self.get_token(1);
+
+                match dest {
+                    "." => Ok(()),
+                    ".." => match self.current_dir_path.parent() {
+                        Some(c) => {
+                            self.current_dir_path = c.to_path_buf();
+                            Ok(())
                         }
-                        Ok(())
-                    }
-                    Err(err) => Err(err.to_string()),
-                }
-            } else if dest.starts_with("./") {
-                // relative path
-                let mut abs_path = self.current_dir_path.clone();
-                abs_path.push(&dest.to_string().leak()[2..]);
-                match fs::symlink_metadata(abs_path.clone()) {
-                    Ok(metadata) => {
-                        if metadata.is_file() {
-                            println!("File exists, but not a path. Can't change directory");
-                        } else if metadata.is_dir() {
-                            self.current_dir_path = abs_path;
-                        } else {
-                            println!("Not a file nor a directory");
+                        None => Err("Can't move to parent directory".to_string()),
+                    },
+                    &_ => {
+                        let absolute_path = match dest {
+                            dest if dest.starts_with("/") => PathBuf::from(dest.to_string()),
+                            dest if dest.starts_with("./") => {
+                                let mut abs_path = self.current_dir_path.clone();
+                                abs_path.push(&dest.to_string().leak()[2..]);
+                                abs_path
+                            }
+                            &_ => {
+                                let mut abs_path = self.current_dir_path.clone();
+                                abs_path.push(dest.to_string());
+                                abs_path
+                            }
+                        };
+                        match fs::symlink_metadata(absolute_path.clone()) {
+                            Ok(metadata) => {
+                                if metadata.is_file() {
+                                    println!("File exists, but not a path. Can't change directory");
+                                } else if metadata.is_dir() {
+                                    self.current_dir_path = absolute_path;
+                                } else {
+                                    println!("Not a file nor a directory");
+                                }
+                                Ok(())
+                            }
+                            Err(err) => Err(err.to_string()),
                         }
-                        Ok(())
                     }
-                    Err(err) => Err(err.to_string()),
                 }
-            } else {
-                Err("No such file or directory".to_string())
             }
-        } else {
-            Ok(())
+            _ => Ok(()),
         }
     }
     pub fn run(&mut self) {
