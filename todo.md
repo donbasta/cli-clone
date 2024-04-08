@@ -25,11 +25,15 @@
 - [ ] todo list app
   - [ ] pake db local (sqlite?)
   - [ ] bisa query2
-  - [ ] basic command:
-    - `todo add act="<aktivitas>" date="<tanggal>" desc="<deskripsi, optional>"`
-    - `todo list act="<aktivitas>" date="<tanggal>"`
-    - `todo done <id-aktivitas>` (bisa pake id activity)
-    - `todo edit <id-aktivitas> act="<new-activity, optional>" date="<tanggal, optional>" desc="<deskripsi, optional>"`
+  - [ ] basic command: (perlu ganti parsing vars di cmdnya biar tokennya jika digabung dengan kutip jadi gaperlu dipisah by whitespace)
+    - `todo add "<activity 1>" "<activity 2>" ... "<activity 3>"`
+    - `todo list`
+    - `todo done <index>`
+    - `todo rm <index>`
+    - `todo reset`
+- [ ] youtube music player from cli
+  - [ ] add to queue
+  - [ ] login + authenticate account (?)
 
 ## Others
 
