@@ -10,25 +10,42 @@ use colored::*;
 
 use chrono::Local;
 
-pub const MANUAL: &str = "echo: repeats input
+use crate::binaries::cd::Cd;
+use crate::binaries::echo::Echo;
+use crate::binaries::ls::Ls;
+use crate::binaries::pwd::Pwd;
+use crate::binaries::Runnable;
+
+const MANUAL: &str = "echo: repeats input
 cat: concatenate files
 ls: list directories
 find: locate files or directories
 grep: matches text in files
 ";
 
-pub const COMMANDS: [&str; 10] = [
+const COMMANDS: [&str; 10] = [
     "echo", "pwd", "cd", "ls", "find", "grep", "cat", "exit", "quit", "man",
 ];
 
-pub struct CMDVariables {
+pub struct CMD {
     raw_command: String,
     tokens: Vec<String>,
     chars: Vec<char>,
     current_dir_path: PathBuf,
 }
 
-impl CMDVariables {
+impl Clone for CMD {
+    fn clone(&self) -> Self {
+        Self {
+            raw_command: self.raw_command.clone(),
+            tokens: self.tokens.clone(),
+            chars: self.chars.clone(),
+            current_dir_path: self.current_dir_path.clone(),
+        }
+    }
+}
+
+impl CMD {
     pub fn new() -> Result<Self, String> {
         match env::current_dir() {
             Ok(cur) => Ok(Self {
@@ -39,6 +56,10 @@ impl CMDVariables {
             }),
             Err(err) => Err(err.to_string()),
         }
+    }
+
+    pub fn register_binaries() {
+        todo!();
     }
 
     pub fn input_and_preprocess(&mut self) {
@@ -79,6 +100,10 @@ impl CMDVariables {
         return self.tokens.len();
     }
 
+    pub fn get_chars(&self) -> &Vec<char> {
+        return &self.chars;
+    }
+
     pub fn display_header(&self) {
         print!(
             "{}",
@@ -96,22 +121,19 @@ impl CMDVariables {
         print!("  ");
         io::stdout().flush().unwrap();
     }
-    pub fn run_echo(&self) {
-        if self.get_tokens_length() >= 2 {
-            let mut itr = 4;
-            while itr < self.chars.len() && self.chars[itr] == ' ' {
-                itr += 1;
-            }
-            let tmp: String = self.chars.iter().collect();
-            print!("{}", &tmp[itr..self.chars.len()].green());
-        }
-    }
-    pub fn run_pwd(&self) {
-        println!("{}", format!("{}", self.current_dir_path.display()).cyan());
-    }
+
     pub fn get_token(&self, idx: usize) -> &str {
         return &self.tokens[idx];
     }
+
+    pub fn get_current_dir_path(&self) -> &PathBuf {
+        return &self.current_dir_path;
+    }
+
+    pub fn set_current_dir_path(&mut self, path_buf: PathBuf) {
+        self.current_dir_path = path_buf;
+    }
+
     pub fn run_man(&self) -> Result<(), String> {
         let manual_detail: HashMap<&str, &str> = [
             ("echo", "for what"),
@@ -161,98 +183,6 @@ impl CMDVariables {
             }
         }
     }
-    pub fn run_ls(&self) -> Result<(), String> {
-        if self.get_tokens_length() > 2 {
-            return Err("Too many arguments for ls".to_string());
-        }
-
-        let mut fpath = self.current_dir_path.clone();
-        if self.get_tokens_length() > 1 {
-            fpath.push(self.get_token(1));
-        }
-
-        match fs::read_dir(fpath) {
-            Ok(entries) => {
-                for entry in entries {
-                    if let Ok(entry) = entry {
-                        let file_name = entry.file_name();
-                        if entry.metadata().unwrap().is_dir() {
-                            println!("{}", file_name.to_string_lossy().cyan());
-                        } else if entry.metadata().unwrap().is_file() {
-                            println!("{}", file_name.to_string_lossy().purple());
-                        } else if entry.metadata().unwrap().is_symlink() {
-                            println!("{}", file_name.to_string_lossy().yellow());
-                        }
-                    }
-                }
-                Ok(())
-            }
-            Err(err) => Err(err.to_string()),
-        }
-    }
-    pub fn run_cd(&mut self) -> Result<(), String> {
-        match self.get_tokens_length() {
-            len if len > 2 => Err("Too many arguments".to_string()),
-            len if len == 2 => {
-                let dest = self.get_token(1);
-
-                match dest {
-                    "." => Ok(()),
-                    ".." => match self.current_dir_path.parent() {
-                        Some(c) => {
-                            self.current_dir_path = c.to_path_buf();
-                            Ok(())
-                        }
-                        None => Err("Can't move to parent directory".to_string()),
-                    },
-                    &_ => {
-                        let absolute_path = match dest {
-                            dest if dest.starts_with("/") => PathBuf::from(dest.to_string()),
-                            dest if dest.starts_with("./") => {
-                                let mut abs_path = self.current_dir_path.clone();
-                                abs_path.push(&dest.to_string().leak()[2..]);
-                                abs_path
-                            }
-                            dest if dest.starts_with("../") => {
-                                let mut abs_path = self.current_dir_path.clone();
-                                match abs_path.parent() {
-                                    Some(c) => {
-                                        abs_path = c.to_path_buf();
-                                    }
-                                    None => {
-                                        return Err("Can't move to parent directory".to_string());
-                                    }
-                                }
-                                abs_path.push(&dest.to_string().leak()[3..]);
-                                abs_path
-                            }
-                            &_ => {
-                                let mut abs_path = self.current_dir_path.clone();
-                                abs_path.push(dest.to_string());
-                                abs_path
-                            }
-                        };
-                        match fs::symlink_metadata(&absolute_path) {
-                            Ok(metadata) => {
-                                if metadata.is_file() {
-                                    println!(
-                                        "File exists, but not a directory. Can't change directory"
-                                    );
-                                } else if metadata.is_dir() {
-                                    self.current_dir_path = absolute_path;
-                                } else {
-                                    println!("Not a file nor a directory");
-                                }
-                                Ok(())
-                            }
-                            Err(err) => Err(err.to_string()),
-                        }
-                    }
-                }
-            }
-            _ => Ok(()),
-        }
-    }
 
     pub fn run_touch(&self) -> Result<(), String> {
         if self.get_tokens_length() == 1 {
@@ -300,48 +230,63 @@ impl CMDVariables {
         }
     }
 
+    pub fn run_binary(&mut self) {
+        if self.empty() {
+            return;
+        }
+
+        match self.get_first_token() {
+            "echo" => {
+                let mut echo_bin = Echo::new(self);
+                let _ = echo_bin.run();
+            }
+            "pwd" => {
+                let mut pwd_bin = Pwd::new(self);
+                let _ = pwd_bin.run();
+            }
+            "cd" => {
+                let mut cd_bin = Cd::new(self);
+                match cd_bin.run() {
+                    Ok(_) => {}
+                    Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
+                }
+            }
+            "ls" => {
+                let mut ls_bin = Ls::new(self);
+                match ls_bin.run() {
+                    Ok(_) => {}
+                    Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
+                }
+            }
+            "cat" => self.run_cat(),
+            "find" => println!("to do doing find"),
+            "grep" => println!("to do doing grep"),
+            "exit" | "quit" => {
+                println!("Exiting CLI");
+                std::process::exit(0);
+            }
+            "touch" => match self.run_touch() {
+                Ok(_) => {}
+                Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
+            },
+            "man" => match self.run_man() {
+                Ok(_) => {}
+                Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
+            },
+            &_ => {
+                eprintln!(
+                    "Error: Command {} not found, see 'man' for help",
+                    self.get_first_token().red().bold()
+                );
+            }
+        }
+    }
+
     pub fn run(&mut self) {
         loop {
             self.display_header();
             self.input_and_preprocess();
-
-            if self.empty() {
-                continue;
-            }
-
-            match self.get_first_token() {
-                "echo" => self.run_echo(),
-                "pwd" => self.run_pwd(),
-                "cd" => match self.run_cd() {
-                    Ok(_) => {}
-                    Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
-                },
-                "ls" => match self.run_ls() {
-                    Ok(_) => {}
-                    Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
-                },
-                "cat" => self.run_cat(),
-                "find" => println!("to do doing find"),
-                "grep" => println!("to do doing grep"),
-                "exit" | "quit" => {
-                    println!("Exiting CLI");
-                    std::process::exit(0);
-                }
-                "touch" => match self.run_touch() {
-                    Ok(_) => {}
-                    Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
-                },
-                "man" => match self.run_man() {
-                    Ok(_) => {}
-                    Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
-                },
-                &_ => {
-                    eprintln!(
-                        "Error: Command {} not found, see 'man' for help",
-                        self.get_first_token().red().bold()
-                    );
-                }
-            }
+            self.run_binary();
         }
     }
 }

@@ -1,5 +1,8 @@
-use crate::cmd::CMDVariables;
+use crate::cmd::CMD;
+
+pub mod binaries;
 pub mod cmd;
+
 fn main() -> Result<(), String> {
     println!(
         r#"
@@ -16,7 +19,7 @@ fn main() -> Result<(), String> {
     println!("Made with ♥ using Rust");
     println!("Type 'man' (without the quote) for getting the list of commands");
 
-    let mut cmd = CMDVariables::new()?;
+    let mut cmd = CMD::new()?;
     cmd.run();
     Ok(())
 }
