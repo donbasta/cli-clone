@@ -16,36 +16,50 @@ pub struct Todo<'a> {
     vars: &'a mut CMD,
 }
 
-impl<'a> Runnable for Todo<'a> {
-    fn run(&mut self) -> Result<(), String> {
+impl<'a> Todo<'a> {
+    fn create_table_if_not_exists(conn: &Connection, table_name: &str) -> Result<(), String> {
+        if let Err(err) = conn.execute(
+            &format!(
+                "CREATE TABLE IF NOT EXISTS {} (
+                id    INTEGER PRIMARY KEY,
+                name  TEXT NOT NULL,
+                date  TEXT NOT NULL,
+                description TEXT NOT NULL,
+                is_done BOOLEAN DEFAULT FALSE NOT NULL
+            )",
+                table_name
+            ),
+            (),
+        ) {
+            return Err(err.to_string());
+        }
+        Ok(())
+    }
+
+    fn insert(&self, activity: &Activity) -> Result<(), String> {
         match Connection::open("./database.db") {
             Ok(conn) => {
+                if let Err(err) = Self::create_table_if_not_exists(&conn, "activity_2") {
+                    return Err(err);
+                }
+
                 if let Err(err) = conn.execute(
-                    "CREATE TABLE IF NOT EXISTS activity_2 (
-                    id    INTEGER PRIMARY KEY,
-                    name  TEXT NOT NULL,
-                    date  TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    is_done BOOLEAN DEFAULT FALSE NOT NULL
-                )",
-                    (),
+                    "INSERT INTO activity_2 (name, date, description) VALUES (?1, ?2, ?3)",
+                    (&activity.name, &activity.date, &activity.description),
                 ) {
                     return Err(err.to_string());
                 }
 
-                let act_1 = Activity {
-                    name: "cari baju".to_string(),
-                    date: "07/04/2024".to_string(),
-                    description: "cari baju di shopee under 100rb buat acara".to_string(),
-                    id: 0,
-                    is_done: false,
-                };
-
-                if let Err(err) = conn.execute(
-                    "INSERT INTO activity_2 (name, date, description) VALUES (?1, ?2, ?3)",
-                    (&act_1.name, &act_1.date, &act_1.description),
-                ) {
-                    return Err(err.to_string());
+                Ok(())
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    }
+    fn query_all(&self) -> Result<(), String> {
+        match Connection::open("./database.db") {
+            Ok(conn) => {
+                if let Err(err) = Self::create_table_if_not_exists(&conn, "activity_2") {
+                    return Err(err);
                 }
 
                 if let Ok(mut stmt) = conn.prepare("SELECT * FROM activity_2") {
@@ -70,6 +84,32 @@ impl<'a> Runnable for Todo<'a> {
                 }
             }
             Err(err) => Err(err.to_string()),
+        }
+    }
+}
+
+impl<'a> Runnable for Todo<'a> {
+    fn run(&mut self) -> Result<(), String> {
+        if self.vars.get_tokens_length() == 1 {
+            return Ok(());
+        }
+
+        match self.vars.get_token(1) {
+            "add" | "insert" => {
+                if self.vars.get_tokens_length() < 4 {
+                    return Err("Error: todo add, too little parameter.".to_string());
+                }
+                let dummy_act = Activity {
+                    id: 0,
+                    name: self.vars.get_token(2).to_string(),
+                    date: self.vars.get_token(3).to_string(),
+                    description: "test".to_string(),
+                    is_done: false
+                };
+                return self.insert(&dummy_act);
+            },
+            "get" | "list" => self.query_all(),
+            &_ => Err(format!("Error: Command {} not found for todo. Check 'man todo' for more detailed information.", self.vars.get_token(1)))
         }
     }
 }
