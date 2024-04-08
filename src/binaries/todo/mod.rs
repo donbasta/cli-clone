@@ -15,6 +15,7 @@ struct Activity {
 const TABLE_NAME: &str = "Activity";
 const DB_PATH: &str = "./database.db";
 
+
 pub struct Todo<'a> {
     vars: &'a mut CMD,
 }
