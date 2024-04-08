@@ -90,7 +90,7 @@ impl<'a> Todo<'a> {
                                         )
                                     );
                                 }
-                                Err(err) => {}
+                                Err(_) => {}
                             }
                         }
                         return Ok(());
