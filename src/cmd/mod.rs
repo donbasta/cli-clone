@@ -8,14 +8,7 @@ use colored::*;
 
 use chrono::Local;
 
-use crate::binaries::cat::Cat;
-use crate::binaries::cd::Cd;
-use crate::binaries::echo::Echo;
-use crate::binaries::ls::Ls;
-use crate::binaries::man::Man;
-use crate::binaries::pwd::Pwd;
-use crate::binaries::touch::Touch;
-use crate::binaries::Runnable;
+use crate::binaries::{BinEnum, Runnable};
 
 pub struct CMD {
     raw_command: String,
@@ -129,45 +122,18 @@ impl CMD {
             return;
         }
 
-        match self.get_first_token() {
-            "echo" => {
-                let _ = Echo::new(self).run();
-            }
-            "pwd" => {
-                let _ = Pwd::new(self).run();
-            }
-            "cd" => match Cd::new(self).run() {
+        let command = self.get_first_token().to_owned();
+        if &command == "exit" || &command == "quit" {
+            println!("Exiting CLI");
+            std::process::exit(0);
+        }
+
+        match BinEnum::create(&command, self) {
+            Ok(ref mut bin) => match bin.run() {
                 Ok(_) => {}
                 Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
             },
-            "ls" => match Ls::new(self).run() {
-                Ok(_) => {}
-                Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
-            },
-            "cat" => match Cat::new(self).run() {
-                Ok(_) => {}
-                Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
-            },
-            "find" => println!("to do doing find"),
-            "grep" => println!("to do doing grep"),
-            "exit" | "quit" => {
-                println!("Exiting CLI");
-                std::process::exit(0);
-            }
-            "touch" => match Touch::new(self).run() {
-                Ok(_) => {}
-                Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
-            },
-            "man" => match Man::new(self).run() {
-                Ok(_) => {}
-                Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
-            },
-            &_ => {
-                eprintln!(
-                    "Error: Command {} not found, see 'man' for help",
-                    self.get_first_token().red().bold()
-                );
-            }
+            Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
         }
     }
 
