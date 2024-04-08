@@ -9,3 +9,4 @@ edition = "2021"
 chrono = "0.4.37"
 colored = "2.1.0"
 console = "0.15.8"
+rusqlite = { version = "0.31.0", features = ["bundled"] }
