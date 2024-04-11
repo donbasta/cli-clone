@@ -1,17 +1,19 @@
 use crate::cmd::CMD;
 
 use self::{
-    cat::Cat, cd::Cd, counter::Counter, echo::Echo, ls::Ls, man::Man, pwd::Pwd, todo::Todo,
-    touch::Touch,
+    cat::Cat, cd::Cd, counter::Counter, echo::Echo, json::Json, ls::Ls, man::Man, pwd::Pwd,
+    timer::Timer, todo::Todo, touch::Touch,
 };
 
 mod cat;
 mod cd;
 mod counter;
 mod echo;
+mod json;
 mod ls;
 mod man;
 mod pwd;
+mod timer;
 mod todo;
 mod touch;
 
@@ -29,6 +31,8 @@ pub enum BinEnum<'a> {
     Touch(Touch<'a>),
     Todo(Todo<'a>),
     Counter(Counter),
+    Timer(Timer),
+    Json(Json),
 }
 
 impl<'a> BinEnum<'a> {
@@ -43,6 +47,8 @@ impl<'a> BinEnum<'a> {
             "touch" => Ok(BinEnum::Touch(Touch::new(vars))),
             "todo" => Ok(BinEnum::Todo(Todo::new(vars))),
             "counter" => Ok(BinEnum::Counter(Counter::new())),
+            "timer" => Ok(BinEnum::Timer(Timer::new())),
+            "json" => Ok(BinEnum::Json(Json::new())),
             &_ => Err(format!(
                 "Error: Command {} not found, see 'man' for help",
                 command
@@ -63,6 +69,8 @@ impl<'a> Runnable for BinEnum<'a> {
             BinEnum::Touch(touch) => touch.run(),
             BinEnum::Todo(todo) => todo.run(),
             BinEnum::Counter(counter) => counter.run(),
+            BinEnum::Timer(timer) => timer.run(),
+            BinEnum::Json(json) => json.run(),
         }
     }
 }

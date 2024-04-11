@@ -42,6 +42,8 @@
 - [ ] bot conversation
   - connect to chatgpt api maybe?
   - can make some kind of role play idk bruh, atau create a story
+- [ ] create a farm!
+  - cats, dogs, etc (just like the cat in vscode extension)
 
 ## Others
 
