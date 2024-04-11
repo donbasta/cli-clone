@@ -31,9 +31,17 @@
     - `todo done <index>`
     - `todo rm <index>`
     - `todo reset`
-- [ ] youtube music player from cli
-  - [ ] add to queue
+- [ ] youtube music player or spotify from cli
+  - [ ] queues, playlists
   - [ ] login + authenticate account (?)
+- [ ] timers for productivity!
+  - pomodoro timer + set ringtone alarm
+- [ ] translation
+  - api to google translate or maybe chatgpt (?)
+  - own translation model (?!!!)
+- [ ] bot conversation
+  - connect to chatgpt api maybe?
+  - can make some kind of role play idk bruh, atau create a story
 
 ## Others
 

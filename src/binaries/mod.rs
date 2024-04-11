@@ -1,9 +1,13 @@
 use crate::cmd::CMD;
 
-use self::{cat::Cat, cd::Cd, echo::Echo, ls::Ls, man::Man, pwd::Pwd, todo::Todo, touch::Touch};
+use self::{
+    cat::Cat, cd::Cd, counter::Counter, echo::Echo, ls::Ls, man::Man, pwd::Pwd, todo::Todo,
+    touch::Touch,
+};
 
 pub mod cat;
 pub mod cd;
+pub mod counter;
 pub mod echo;
 pub mod ls;
 pub mod man;
@@ -24,6 +28,7 @@ pub enum BinEnum<'a> {
     Pwd(Pwd<'a>),
     Touch(Touch<'a>),
     Todo(Todo<'a>),
+    Counter(Counter),
 }
 
 impl<'a> BinEnum<'a> {
@@ -37,6 +42,7 @@ impl<'a> BinEnum<'a> {
             "man" => Ok(BinEnum::Man(Man::new(vars))),
             "touch" => Ok(BinEnum::Touch(Touch::new(vars))),
             "todo" => Ok(BinEnum::Todo(Todo::new(vars))),
+            "counter" => Ok(BinEnum::Counter(Counter::new())),
             &_ => Err(format!(
                 "Error: Command {} not found, see 'man' for help",
                 command
@@ -56,6 +62,7 @@ impl<'a> Runnable for BinEnum<'a> {
             BinEnum::Pwd(pwd) => pwd.run(),
             BinEnum::Touch(touch) => touch.run(),
             BinEnum::Todo(todo) => todo.run(),
+            BinEnum::Counter(counter) => counter.run(),
         }
     }
 }
