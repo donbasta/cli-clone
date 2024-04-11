@@ -2,6 +2,7 @@ use crate::cmd::CMD;
 
 pub mod binaries;
 pub mod cmd;
+pub mod tui;
 
 fn main() -> Result<(), String> {
     println!(

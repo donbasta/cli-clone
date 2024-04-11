@@ -5,15 +5,15 @@ use self::{
     touch::Touch,
 };
 
-pub mod cat;
-pub mod cd;
-pub mod counter;
-pub mod echo;
-pub mod ls;
-pub mod man;
-pub mod pwd;
-pub mod todo;
-pub mod touch;
+mod cat;
+mod cd;
+mod counter;
+mod echo;
+mod ls;
+mod man;
+mod pwd;
+mod todo;
+mod touch;
 
 pub trait Runnable {
     fn run(&mut self) -> Result<(), String>;
