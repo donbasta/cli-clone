@@ -1,4 +1,4 @@
-use crate::tui;
+use crate::ui::tui;
 use std::io;
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};

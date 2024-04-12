@@ -2,7 +2,7 @@ use crate::cmd::CMD;
 
 pub mod binaries;
 pub mod cmd;
-pub mod tui;
+pub mod ui;
 
 fn main() -> Result<(), String> {
     println!(

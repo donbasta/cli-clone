@@ -10,7 +10,10 @@ pub struct Timer {
 impl Runnable for Timer {
     fn run(&mut self) -> Result<(), String> {
         match self.app.run_app() {
-            Ok(_) => Ok(()),
+            Ok(_) => match self.app.print_json() {
+                Ok(_) => Ok(()),
+                Err(err) => Err(err.to_string()),
+            },
             Err(err) => Err(err.to_string()),
         }
     }
@@ -18,8 +21,6 @@ impl Runnable for Timer {
 
 impl Timer {
     pub fn new() -> Self {
-        Self {
-            app: App::default(),
-        }
+        Self { app: App::new() }
     }
 }
