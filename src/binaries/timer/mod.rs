@@ -1,4 +1,5 @@
 pub mod app;
+mod ui;
 
 use super::Runnable;
 use crate::binaries::timer::app::App;
