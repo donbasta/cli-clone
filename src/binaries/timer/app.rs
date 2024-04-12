@@ -90,6 +90,12 @@ impl StatefulList {
         };
         self.state.select(Some(i));
     }
+    fn set_last(&mut self) {
+        self.state.select(Some(self.items.len() - 1));
+    }
+    fn get_selected_index(&self) -> Option<usize> {
+        return self.state.selected();
+    }
 }
 
 #[derive(Debug)]
@@ -130,6 +136,7 @@ impl App {
         self.minute_input = String::new();
         self.second_input = String::new();
         self.currently_editing = None;
+        self.timers.set_last();
     }
 
     pub fn run_app(&mut self) -> io::Result<()> {
@@ -319,7 +326,7 @@ impl App {
         let timer_list = List::new(list_items)
             .block(Block::default().borders(Borders::ALL))
             .highlight_style(Style::new().red().italic())
-            .highlight_symbol(">")
+            .highlight_symbol("> ")
             .highlight_spacing(HighlightSpacing::Always);
 
         let body_chunks = Layout::default()
@@ -328,8 +335,20 @@ impl App {
             .split(chunks[1]);
 
         frame.render_stateful_widget(timer_list, body_chunks[0], &mut self.timers.state);
-        // StatefulWidget::render(timer_list, body_chunks[0], , &mut self.timers.state);
-        // frame.render_widget(timer_list, body_chunks[0]);
+
+        if let Some(idx) = self.timers.get_selected_index() {
+            let detailed_timer = Paragraph::new(Text::styled(
+                format!(
+                    "{}:{}:{}",
+                    self.timers.items[idx].hour,
+                    self.timers.items[idx].minute,
+                    self.timers.items[idx].second
+                ),
+                Style::default().fg(Color::Green),
+            ))
+            .block(Block::default().borders(Borders::ALL));
+            frame.render_widget(detailed_timer, body_chunks[1]);
+        }
 
         let current_navigation_text = vec![
             match self.current_screen {
