@@ -1,7 +1,6 @@
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture};
 use crossterm::execute;
 use crossterm::terminal::{disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
-use std::collections::HashMap;
 use std::io::{self, Stderr};
 
 use crossterm::{
@@ -13,6 +12,8 @@ use ratatui::{
     widgets::{block::*, *},
 };
 
+use crate::ui::utils::centered_rect;
+
 #[derive(Debug)]
 pub enum CurrentScreen {
     Main,
@@ -22,15 +23,83 @@ pub enum CurrentScreen {
 
 #[derive(Debug)]
 pub enum CurrentlyEditing {
-    Key,
-    Value,
+    Name,
+    Hour,
+    Minute,
+    Second,
+}
+
+#[derive(Debug)]
+pub struct Timer {
+    name: String,
+    hour: u32,
+    minute: u32,
+    second: u32,
+}
+
+impl Timer {
+    fn to_list_item(&self) -> ListItem {
+        ListItem::new(Line::from(Span::styled(
+            format!("{: <25}", self.name),
+            Style::default().fg(Color::Yellow),
+        )))
+    }
+}
+
+#[derive(Debug)]
+pub struct StatefulList {
+    state: ListState,
+    items: Vec<Timer>,
+    last_selected: Option<usize>,
+}
+
+impl StatefulList {
+    fn new() -> Self {
+        Self {
+            state: ListState::default(),
+            items: Vec::new(),
+            last_selected: None,
+        }
+    }
+    fn add(&mut self, new_timer: Timer) {
+        self.items.push(new_timer);
+    }
+    fn next(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i >= self.items.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => self.last_selected.unwrap_or(0),
+        };
+        self.state.select(Some(i));
+    }
+    fn previous(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.items.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => self.last_selected.unwrap_or(0),
+        };
+        self.state.select(Some(i));
+    }
 }
 
 #[derive(Debug)]
 pub struct App {
-    pub key_input: String,
-    pub value_input: String,
-    pub pairs: HashMap<String, String>,
+    pub name_input: String,
+    pub hour_input: String,
+    pub minute_input: String,
+    pub second_input: String,
+
+    pub timers: StatefulList,
     pub current_screen: CurrentScreen,
     pub currently_editing: Option<CurrentlyEditing>,
 }
@@ -38,34 +107,29 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         Self {
-            key_input: String::new(),
-            value_input: String::new(),
-            pairs: HashMap::new(),
+            name_input: String::new(),
+            hour_input: String::new(),
+            minute_input: String::new(),
+            second_input: String::new(),
+
+            timers: StatefulList::new(),
             current_screen: CurrentScreen::Main,
             currently_editing: None,
         }
     }
-    pub fn save_key_value(&mut self) {
-        self.pairs
-            .insert(self.key_input.clone(), self.value_input.clone());
-        self.key_input = String::new();
-        self.value_input = String::new();
+    pub fn save_new_timer(&mut self) {
+        self.timers.add(Timer {
+            name: self.name_input.clone(),
+            hour: self.hour_input.clone().parse::<u32>().unwrap(),
+            minute: self.minute_input.clone().parse::<u32>().unwrap(),
+            second: self.second_input.clone().parse::<u32>().unwrap(),
+        });
+
+        self.name_input = String::new();
+        self.hour_input = String::new();
+        self.minute_input = String::new();
+        self.second_input = String::new();
         self.currently_editing = None;
-    }
-    pub fn toggle_editing(&mut self) {
-        if let Some(edit_mode) = &self.currently_editing {
-            match edit_mode {
-                CurrentlyEditing::Key => self.currently_editing = Some(CurrentlyEditing::Value),
-                CurrentlyEditing::Value => self.currently_editing = Some(CurrentlyEditing::Key),
-            };
-        } else {
-            self.currently_editing = Some(CurrentlyEditing::Key);
-        }
-    }
-    pub fn print_json(&self) -> serde_json::Result<()> {
-        let output = serde_json::to_string(&self.pairs)?;
-        println!("{}", output);
-        Ok(())
     }
 
     pub fn run_app(&mut self) -> io::Result<()> {
@@ -75,7 +139,7 @@ impl App {
         let backend = CrosstermBackend::new(stderr);
         let mut terminal = Terminal::new(backend)?;
 
-        let res = self.run(&mut terminal);
+        let _ = self.run(&mut terminal);
 
         disable_raw_mode()?;
         execute!(
@@ -85,18 +149,10 @@ impl App {
         )?;
         terminal.show_cursor()?;
 
-        if let Ok(do_print) = res {
-            if do_print {
-                self.print_json()?;
-            }
-        } else if let Err(err) = res {
-            println!("{err:?}");
-        }
-
         Ok(())
     }
 
-    pub fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<Stderr>>) -> io::Result<bool> {
+    pub fn run(&mut self, terminal: &mut Terminal<CrosstermBackend<Stderr>>) -> io::Result<()> {
         loop {
             terminal.draw(|f| self.render_frame(f))?;
 
@@ -106,21 +162,27 @@ impl App {
                 }
                 match self.current_screen {
                     CurrentScreen::Main => match key.code {
-                        KeyCode::Char('e') => {
+                        KeyCode::Char('+') => {
                             self.current_screen = CurrentScreen::Editing;
-                            self.currently_editing = Some(CurrentlyEditing::Key);
+                            self.currently_editing = Some(CurrentlyEditing::Name);
                         }
                         KeyCode::Char('q') => {
                             self.current_screen = CurrentScreen::Exiting;
                         }
+                        KeyCode::Down => {
+                            self.timers.next();
+                        }
+                        KeyCode::Up => {
+                            self.timers.previous();
+                        }
                         _ => {}
                     },
                     CurrentScreen::Exiting => match key.code {
-                        KeyCode::Char('y') => {
-                            return Ok(true);
+                        KeyCode::Char('y') | KeyCode::Char('q') | KeyCode::Enter => {
+                            return Ok(());
                         }
-                        KeyCode::Char('n') | KeyCode::Char('q') => {
-                            return Ok(false);
+                        KeyCode::Char('n') => {
+                            self.current_screen = CurrentScreen::Main;
                         }
                         _ => {}
                     },
@@ -128,11 +190,17 @@ impl App {
                         KeyCode::Enter => {
                             if let Some(editing) = &self.currently_editing {
                                 match editing {
-                                    CurrentlyEditing::Key => {
-                                        self.currently_editing = Some(CurrentlyEditing::Value);
+                                    CurrentlyEditing::Name => {
+                                        self.currently_editing = Some(CurrentlyEditing::Hour);
                                     }
-                                    CurrentlyEditing::Value => {
-                                        self.save_key_value();
+                                    CurrentlyEditing::Hour => {
+                                        self.currently_editing = Some(CurrentlyEditing::Minute);
+                                    }
+                                    CurrentlyEditing::Minute => {
+                                        self.currently_editing = Some(CurrentlyEditing::Second);
+                                    }
+                                    CurrentlyEditing::Second => {
+                                        self.save_new_timer();
                                         self.current_screen = CurrentScreen::Main;
                                     }
                                 }
@@ -141,11 +209,17 @@ impl App {
                         KeyCode::Backspace => {
                             if let Some(editing) = &self.currently_editing {
                                 match editing {
-                                    CurrentlyEditing::Key => {
-                                        self.key_input.pop();
+                                    CurrentlyEditing::Name => {
+                                        self.name_input.pop();
                                     }
-                                    CurrentlyEditing::Value => {
-                                        self.value_input.pop();
+                                    CurrentlyEditing::Hour => {
+                                        self.hour_input.pop();
+                                    }
+                                    CurrentlyEditing::Minute => {
+                                        self.minute_input.pop();
+                                    }
+                                    CurrentlyEditing::Second => {
+                                        self.second_input.pop();
                                     }
                                 }
                             }
@@ -154,17 +228,52 @@ impl App {
                             self.current_screen = CurrentScreen::Main;
                             self.currently_editing = None;
                         }
-                        KeyCode::Tab => {
-                            self.toggle_editing();
+                        KeyCode::Up => {
+                            if let Some(editing) = &self.currently_editing {
+                                match editing {
+                                    CurrentlyEditing::Name => {}
+                                    CurrentlyEditing::Hour => {
+                                        self.currently_editing = Some(CurrentlyEditing::Name);
+                                    }
+                                    CurrentlyEditing::Minute => {
+                                        self.currently_editing = Some(CurrentlyEditing::Hour);
+                                    }
+                                    CurrentlyEditing::Second => {
+                                        self.currently_editing = Some(CurrentlyEditing::Minute);
+                                    }
+                                }
+                            }
+                        }
+                        KeyCode::Down => {
+                            if let Some(editing) = &self.currently_editing {
+                                match editing {
+                                    CurrentlyEditing::Name => {
+                                        self.currently_editing = Some(CurrentlyEditing::Hour);
+                                    }
+                                    CurrentlyEditing::Hour => {
+                                        self.currently_editing = Some(CurrentlyEditing::Minute);
+                                    }
+                                    CurrentlyEditing::Minute => {
+                                        self.currently_editing = Some(CurrentlyEditing::Second);
+                                    }
+                                    CurrentlyEditing::Second => {}
+                                }
+                            }
                         }
                         KeyCode::Char(value) => {
                             if let Some(editing) = &self.currently_editing {
                                 match editing {
-                                    CurrentlyEditing::Key => {
-                                        self.key_input.push(value);
+                                    CurrentlyEditing::Name => {
+                                        self.name_input.push(value);
                                     }
-                                    CurrentlyEditing::Value => {
-                                        self.value_input.push(value);
+                                    CurrentlyEditing::Hour => {
+                                        self.hour_input.push(value);
+                                    }
+                                    CurrentlyEditing::Minute => {
+                                        self.minute_input.push(value);
+                                    }
+                                    CurrentlyEditing::Second => {
+                                        self.second_input.push(value);
                                     }
                                 }
                             }
@@ -176,28 +285,8 @@ impl App {
             }
         }
     }
-    fn centered_rect(&self, percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-        // Cut the given rectangle into three vertical pieces
-        let popup_layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage((100 - percent_y) / 2),
-                Constraint::Percentage(percent_y),
-                Constraint::Percentage((100 - percent_y) / 2),
-            ])
-            .split(r);
 
-        // Then cut the middle vertical piece into three width-wise pieces
-        Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage((100 - percent_x) / 2),
-                Constraint::Percentage(percent_x),
-                Constraint::Percentage((100 - percent_x) / 2),
-            ])
-            .split(popup_layout[1])[1] // Return the middle chunk
-    }
-    fn render_frame(&self, frame: &mut Frame) {
+    fn render_frame(&mut self, frame: &mut Frame) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -212,22 +301,35 @@ impl App {
             .style(Style::default());
 
         let title = Paragraph::new(Text::styled(
-            "Create New Json",
+            "🍅 Pomodoro Timer 🍅",
             Style::default().fg(Color::Green),
         ))
         .block(title_block);
 
         frame.render_widget(title, chunks[0]);
-        let mut list_items = Vec::<ListItem>::new();
 
-        for key in self.pairs.keys() {
-            list_items.push(ListItem::new(Line::from(Span::styled(
-                format!("{: <25} : {}", key, self.pairs.get(key).unwrap()),
-                Style::default().fg(Color::Yellow),
-            ))));
-        }
-        let list = List::new(list_items);
-        frame.render_widget(list, chunks[1]);
+        let list_items: Vec<ListItem> = self
+            .timers
+            .items
+            .iter()
+            .enumerate()
+            .map(|(_, timer_item)| timer_item.to_list_item())
+            .collect();
+
+        let timer_list = List::new(list_items)
+            .block(Block::default().borders(Borders::ALL))
+            .highlight_style(Style::new().red().italic())
+            .highlight_symbol(">")
+            .highlight_spacing(HighlightSpacing::Always);
+
+        let body_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(30), Constraint::Percentage(70)])
+            .split(chunks[1]);
+
+        frame.render_stateful_widget(timer_list, body_chunks[0], &mut self.timers.state);
+        // StatefulWidget::render(timer_list, body_chunks[0], , &mut self.timers.state);
+        // frame.render_widget(timer_list, body_chunks[0]);
 
         let current_navigation_text = vec![
             match self.current_screen {
@@ -246,11 +348,18 @@ impl App {
             {
                 if let Some(editing) = &self.currently_editing {
                     match editing {
-                        CurrentlyEditing::Key => {
-                            Span::styled("Editing Json Key", Style::default().fg(Color::Green))
+                        CurrentlyEditing::Name => {
+                            Span::styled("Editing Timer Name", Style::default().fg(Color::Green))
                         }
-                        CurrentlyEditing::Value => Span::styled(
-                            "Editing Json Value",
+                        CurrentlyEditing::Hour => Span::styled(
+                            "Editing Timer Hour",
+                            Style::default().fg(Color::LightGreen),
+                        ),
+                        CurrentlyEditing::Minute => {
+                            Span::styled("Editing Timer Minute", Style::default().fg(Color::Green))
+                        }
+                        CurrentlyEditing::Second => Span::styled(
+                            "Editing Timer Second",
                             Style::default().fg(Color::LightGreen),
                         ),
                     }
@@ -266,15 +375,15 @@ impl App {
         let current_keys_hint = {
             match self.current_screen {
                 CurrentScreen::Main => Span::styled(
-                    "(q) to quit / (e) to make new pair",
+                    "(q) to quit / (+) to add new",
                     Style::default().fg(Color::Red),
                 ),
                 CurrentScreen::Editing => Span::styled(
-                    "(ESC) to cancel/(Tab) to switch boxes/enter to complete",
+                    "(ESC) to cancel/(up/down) to switch boxes/enter to complete",
                     Style::default().fg(Color::Red),
                 ),
                 CurrentScreen::Exiting => Span::styled(
-                    "(q) to quit / (e) to make new pair",
+                    "(q) to quit / (+) to add new",
                     Style::default().fg(Color::Red),
                 ),
             }
@@ -293,53 +402,64 @@ impl App {
 
         if let Some(editing) = &self.currently_editing {
             let popup_block = Block::default()
-                .title("Enter a new key-value pair")
+                .title("Enter a new timer")
                 .borders(Borders::NONE)
                 .style(Style::default().bg(Color::DarkGray));
 
-            let area = self.centered_rect(60, 25, frame.size());
+            let area = centered_rect(50, 50, frame.size());
             frame.render_widget(popup_block, area);
 
             let popup_chunks = Layout::default()
-                .direction(Direction::Horizontal)
+                .direction(Direction::Vertical)
                 .margin(1)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .constraints([
+                    Constraint::Percentage(25),
+                    Constraint::Percentage(25),
+                    Constraint::Percentage(25),
+                    Constraint::Percentage(25),
+                ])
                 .split(area);
 
-            let mut key_block = Block::default().title("Key").borders(Borders::ALL);
-            let mut value_block = Block::default().title("Value").borders(Borders::ALL);
+            let mut name_block = Block::default().title("Name").borders(Borders::ALL);
+            let mut hour_block = Block::default().title("Hour").borders(Borders::ALL);
+            let mut minute_block = Block::default().title("Minute").borders(Borders::ALL);
+            let mut second_block = Block::default().title("Second").borders(Borders::ALL);
 
             let active_style = Style::default().bg(Color::LightYellow).fg(Color::Black);
 
             match editing {
-                CurrentlyEditing::Key => key_block = key_block.style(active_style),
-                CurrentlyEditing::Value => value_block = value_block.style(active_style),
+                CurrentlyEditing::Name => name_block = name_block.style(active_style),
+                CurrentlyEditing::Hour => hour_block = hour_block.style(active_style),
+                CurrentlyEditing::Minute => minute_block = minute_block.style(active_style),
+                CurrentlyEditing::Second => second_block = second_block.style(active_style),
             };
 
-            let key_text = Paragraph::new(self.key_input.clone()).block(key_block);
-            frame.render_widget(key_text, popup_chunks[0]);
+            let name_input_text = Paragraph::new(self.name_input.clone()).block(name_block);
+            let hour_input_text = Paragraph::new(self.hour_input.clone()).block(hour_block);
+            let minute_input_text = Paragraph::new(self.minute_input.clone()).block(minute_block);
+            let second_input_text = Paragraph::new(self.second_input.clone()).block(second_block);
 
-            let value_text = Paragraph::new(self.value_input.clone()).block(value_block);
-            frame.render_widget(value_text, popup_chunks[1]);
+            frame.render_widget(name_input_text, popup_chunks[0]);
+            frame.render_widget(hour_input_text, popup_chunks[1]);
+            frame.render_widget(minute_input_text, popup_chunks[2]);
+            frame.render_widget(second_input_text, popup_chunks[3]);
         }
 
         if let CurrentScreen::Exiting = self.current_screen {
             frame.render_widget(Clear, frame.size()); //this clears the entire screen and anything already drawn
             let popup_block = Block::default()
-                .title("Y/N")
                 .borders(Borders::NONE)
                 .style(Style::default().bg(Color::DarkGray));
 
             let exit_text = Text::styled(
-                "Would you like to output the buffer as json? (y/n)",
+                "Would you like to exit the timer app? (y/n)",
                 Style::default().fg(Color::Red),
             );
-            // the `trim: false` will stop the text from being cut off when over the edge of the block
             let exit_paragraph = Paragraph::new(exit_text)
                 .block(popup_block)
                 .wrap(Wrap { trim: false });
 
-            let area = self.centered_rect(60, 25, frame.size());
+            let area = centered_rect(60, 25, frame.size());
             frame.render_widget(exit_paragraph, area);
         }
     }
