@@ -1,23 +1,27 @@
 use crate::cmd::CMD;
 use std::{fs::OpenOptions, path::PathBuf};
 
-use super::Runnable;
+use super::{AppResult, Runnable};
 
 pub struct Touch<'a> {
     vars: &'a CMD,
 }
 
 impl<'a> Runnable for Touch<'a> {
-    fn run(&mut self) -> Result<(), String> {
+    fn run(&mut self) -> AppResult<()> {
         if self.vars.get_tokens_length() == 1 {
             return Err(
-                "touch: missing file operand. Type 'man touch' for more information".to_string(),
+                "touch: missing file operand. Type 'man touch' for more information"
+                    .to_string()
+                    .into(),
             );
         }
 
         let fpath = self.vars.get_token(1);
         if fpath.ends_with("/") {
-            return Err("touch: can't create directory with touch".to_string());
+            return Err("touch: can't create directory with touch"
+                .to_string()
+                .into());
         }
 
         match fpath {
@@ -41,14 +45,14 @@ impl<'a> Runnable for Touch<'a> {
                             {
                                 Ok(_) => Ok(()),
                                 Err(err) => {
-                                    return Err(err.to_string());
+                                    return Err(Box::new(err));
                                 }
                             }
                         } else {
-                            Err("touch: directory does not exist".to_string())
+                            Err("touch: directory does not exist".to_string().into())
                         }
                     }
-                    None => Err("touch: directory does not exist".to_string()),
+                    None => Err("touch: directory does not exist".to_string().into()),
                 }
             }
         }

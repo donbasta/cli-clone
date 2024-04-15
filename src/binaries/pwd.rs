@@ -2,14 +2,14 @@ use colored::Colorize;
 
 use crate::cmd::CMD;
 
-use super::Runnable;
+use super::{AppResult, Runnable};
 
 pub struct Pwd<'a> {
     vars: &'a CMD,
 }
 
 impl<'a> Runnable for Pwd<'a> {
-    fn run(&mut self) -> Result<(), String> {
+    fn run(&mut self) -> AppResult<()> {
         println!(
             "{}",
             format!("{}", self.vars.get_current_dir_path().display()).cyan()

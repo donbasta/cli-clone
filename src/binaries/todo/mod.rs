@@ -3,7 +3,7 @@ use rusqlite::Connection;
 
 use colored::Colorize;
 
-use super::Runnable;
+use super::{AppResult, Runnable};
 
 #[derive(Debug)]
 struct Activity {
@@ -20,7 +20,7 @@ pub struct Todo<'a> {
 }
 
 impl<'a> Todo<'a> {
-    fn create_table_if_not_exists(conn: &Connection, table_name: &str) -> Result<(), String> {
+    fn create_table_if_not_exists(conn: &Connection, table_name: &str) -> AppResult<()> {
         if let Err(err) = conn.execute(
             &format!(
                 "CREATE TABLE IF NOT EXISTS {} (
@@ -32,12 +32,12 @@ impl<'a> Todo<'a> {
             ),
             (),
         ) {
-            return Err(err.to_string());
+            return Err(Box::new(err));
         }
         Ok(())
     }
 
-    fn insert(&self, activity: Vec<Activity>) -> Result<(), String> {
+    fn insert(&self, activity: Vec<Activity>) -> AppResult<()> {
         match Connection::open(DB_PATH) {
             Ok(conn) => {
                 if let Err(err) = Self::create_table_if_not_exists(&conn, TABLE_NAME) {
@@ -50,18 +50,18 @@ impl<'a> Todo<'a> {
                     Ok(mut stmt) => {
                         for act in activity.iter() {
                             if let Err(err) = stmt.execute([act.name.to_owned()]) {
-                                return Err(err.to_string());
+                                return Err(Box::new(err));
                             }
                         }
                         Ok(())
                     }
-                    Err(err) => Err(err.to_string()),
+                    Err(err) => Err(Box::new(err)),
                 }
             }
-            Err(err) => Err(err.to_string()),
+            Err(err) => Err(Box::new(err)),
         }
     }
-    fn query_all(&self) -> Result<(), String> {
+    fn query_all(&self) -> AppResult<()> {
         match Connection::open(DB_PATH) {
             Ok(conn) => {
                 if let Err(err) = Self::create_table_if_not_exists(&conn, TABLE_NAME) {
@@ -95,16 +95,16 @@ impl<'a> Todo<'a> {
                         }
                         return Ok(());
                     } else {
-                        return Err("Error: Query Map Failed".to_string());
+                        return Err("Error: Query Map Failed".to_string().into());
                     }
                 } else {
-                    return Err("Error: Query Statement Failed".to_string());
+                    return Err("Error: Query Statement Failed".to_string().into());
                 }
             }
-            Err(err) => Err(err.to_string()),
+            Err(err) => Err(Box::new(err)),
         }
     }
-    fn update_done(&self, indices: Vec<u64>) -> Result<(), String> {
+    fn update_done(&self, indices: Vec<u64>) -> AppResult<()> {
         match Connection::open(DB_PATH) {
             Ok(conn) => {
                 if let Err(err) = Self::create_table_if_not_exists(&conn, TABLE_NAME) {
@@ -117,18 +117,18 @@ impl<'a> Todo<'a> {
                     Ok(mut stmt) => {
                         for idx in indices.iter() {
                             if let Err(err) = stmt.execute([idx]) {
-                                return Err(err.to_string());
+                                return Err(Box::new(err));
                             }
                         }
                         Ok(())
                     }
-                    Err(err) => Err(err.to_string()),
+                    Err(err) => Err(Box::new(err)),
                 }
             }
-            Err(err) => Err(err.to_string()),
+            Err(err) => Err(Box::new(err)),
         }
     }
-    fn update_undone(&self, indices: Vec<u64>) -> Result<(), String> {
+    fn update_undone(&self, indices: Vec<u64>) -> AppResult<()> {
         match Connection::open(DB_PATH) {
             Ok(conn) => {
                 if let Err(err) = Self::create_table_if_not_exists(&conn, TABLE_NAME) {
@@ -141,18 +141,18 @@ impl<'a> Todo<'a> {
                     Ok(mut stmt) => {
                         for idx in indices.iter() {
                             if let Err(err) = stmt.execute([idx]) {
-                                return Err(err.to_string());
+                                return Err(Box::new(err));
                             }
                         }
                         Ok(())
                     }
-                    Err(err) => Err(err.to_string()),
+                    Err(err) => Err(Box::new(err)),
                 }
             }
-            Err(err) => Err(err.to_string()),
+            Err(err) => Err(Box::new(err)),
         }
     }
-    fn remove(&self, indices: Vec<u64>) -> Result<(), String> {
+    fn remove(&self, indices: Vec<u64>) -> AppResult<()> {
         match Connection::open(DB_PATH) {
             Ok(conn) => {
                 if let Err(err) = Self::create_table_if_not_exists(&conn, TABLE_NAME) {
@@ -165,21 +165,21 @@ impl<'a> Todo<'a> {
                     Ok(mut stmt) => {
                         for idx in indices.iter() {
                             if let Err(err) = stmt.execute([idx]) {
-                                return Err(err.to_string());
+                                return Err(Box::new(err));
                             }
                         }
                         Ok(())
                     }
-                    Err(err) => Err(err.to_string()),
+                    Err(err) => Err(Box::new(err)),
                 }
             }
-            Err(err) => Err(err.to_string()),
+            Err(err) => Err(Box::new(err)),
         }
     }
 }
 
 impl<'a> Runnable for Todo<'a> {
-    fn run(&mut self) -> Result<(), String> {
+    fn run(&mut self) -> AppResult<()> {
         if self.vars.get_tokens_length() == 1 {
             println!("No command entered, see 'man todo' for more detailed information");
             return Ok(());
@@ -188,7 +188,7 @@ impl<'a> Runnable for Todo<'a> {
         match self.vars.get_token(1) {
             "add" | "insert" => {
                 if self.vars.get_tokens_length() == 2 {
-                    return Err("Error: you need to add some tasks".to_string());
+                    return Err("Error: you need to add some tasks".to_string().into());
                 }
                 let mut activities_to_add : Vec<Activity> = Vec::new();
                 for idx in 2..self.vars.get_tokens_length() {
@@ -201,23 +201,23 @@ impl<'a> Runnable for Todo<'a> {
             "get" | "list" => self.query_all(),
             "do" | "undo" => {
                 if self.vars.get_tokens_length() == 2 {
-                    return Err("Error: you need to provide the id of the task to be marked as done".to_string());
+                    return Err("Error: you need to provide the id of the task to be marked as done".to_string().into());
                 }
                 let mut activity_ids : Vec<u64> = Vec::new();
                 for idx in 2..self.vars.get_tokens_length() {
                     match self.vars.get_token(idx).parse::<u64>() {
                         Ok(idx_int) => activity_ids.push(idx_int),
-                        Err(_) => return Err("Error: id provided is not an integer; not valid".to_string()),
+                        Err(_) => return Err("Error: id provided is not an integer; not valid".to_string().into()),
                     }
                 }
                 match self.vars.get_token(1) {
                     "do" => self.update_done(activity_ids),
                     "undo" => self.update_undone(activity_ids),
                     "remove" | "erase" | "delete" => self.remove(activity_ids),
-                    &_ => Err("Error".to_string()),
+                    &_ => Err("Error".to_string().into()),
                 }
             }
-            &_ => Err(format!("Error: Command {} not found for todo. Check 'man todo' for more detailed information.", self.vars.get_token(1)))
+            &_ => Err(format!("Error: Command {} not found for todo. Check 'man todo' for more detailed information.", self.vars.get_token(1)).into())
         }
     }
 }

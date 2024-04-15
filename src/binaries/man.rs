@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::cmd::CMD;
 
-use super::Runnable;
+use super::{AppResult, Runnable};
 
 pub struct Man<'a> {
     vars: &'a CMD,
@@ -20,7 +20,7 @@ const COMMANDS: [&str; 10] = [
 ];
 
 impl<'a> Runnable for Man<'a> {
-    fn run(&mut self) -> Result<(), String> {
+    fn run(&mut self) -> AppResult<()> {
         let manual_detail: HashMap<&str, &str> = [
             ("echo", "for what"),
             ("pwd", "for what"),
@@ -50,12 +50,13 @@ impl<'a> Runnable for Man<'a> {
                 println!("{}", manual_detail[&self.vars.get_token(1)]);
                 Ok(())
             } else {
-                Err(format!("man: Command {} not found", self.vars.get_token(1)))
+                Err(format!("man: Command {} not found", self.vars.get_token(1)).into())
             }
         } else {
             Err(
                 "man: too many arguments. Type 'man man' for more detailed information."
-                    .to_string(),
+                    .to_string()
+                    .into(),
             )
         }
     }

@@ -2,16 +2,16 @@ use std::{fs, path::PathBuf};
 
 use crate::cmd::CMD;
 
-use super::Runnable;
+use super::{AppResult, Runnable};
 
 pub struct Cd<'a> {
     vars: &'a mut CMD,
 }
 
 impl<'a> Runnable for Cd<'a> {
-    fn run(&mut self) -> Result<(), String> {
+    fn run(&mut self) -> AppResult<()> {
         match self.vars.get_tokens_length() {
-            len if len > 2 => Err("Too many arguments".to_string()),
+            len if len > 2 => Err("Too many arguments".to_string().into()),
             len if len == 2 => {
                 let dest = self.vars.get_token(1);
 
@@ -22,7 +22,7 @@ impl<'a> Runnable for Cd<'a> {
                             self.vars.set_current_dir_path(c.to_path_buf());
                             Ok(())
                         }
-                        None => Err("Can't move to parent directory".to_string()),
+                        None => Err("Can't move to parent directory".to_string().into()),
                     },
                     &_ => {
                         let absolute_path = match dest {
@@ -39,7 +39,9 @@ impl<'a> Runnable for Cd<'a> {
                                         abs_path = c.to_path_buf();
                                     }
                                     None => {
-                                        return Err("Can't move to parent directory".to_string());
+                                        return Err("Can't move to parent directory"
+                                            .to_string()
+                                            .into());
                                     }
                                 }
                                 abs_path.push(&dest.to_string().leak()[3..]);
@@ -64,7 +66,7 @@ impl<'a> Runnable for Cd<'a> {
                                 }
                                 Ok(())
                             }
-                            Err(err) => Err(err.to_string()),
+                            Err(err) => Err(Box::new(err)),
                         }
                     }
                 }

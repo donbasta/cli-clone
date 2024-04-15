@@ -1,3 +1,5 @@
+use std::error;
+
 use crate::cmd::CMD;
 
 use self::{
@@ -7,7 +9,7 @@ use self::{
 
 mod cat;
 mod cd;
-mod counter;
+pub mod counter;
 mod echo;
 mod json;
 mod ls;
@@ -17,8 +19,10 @@ mod timer;
 mod todo;
 mod touch;
 
+pub type AppResult<T> = std::result::Result<T, Box<dyn error::Error>>;
+
 pub trait Runnable {
-    fn run(&mut self) -> Result<(), String>;
+    fn run(&mut self) -> AppResult<()>;
 }
 
 pub enum BinEnum<'a> {
@@ -58,7 +62,7 @@ impl<'a> BinEnum<'a> {
 }
 
 impl<'a> Runnable for BinEnum<'a> {
-    fn run(&mut self) -> Result<(), String> {
+    fn run(&mut self) -> AppResult<()> {
         match self {
             BinEnum::Cat(cat) => cat.run(),
             BinEnum::Cd(cd) => cd.run(),

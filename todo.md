@@ -16,6 +16,7 @@
   - [ ] pake trie biar cepet dan keren, kalo mager pake iterasi aja juga bisa
   - [ ] harus bisa update command selagi ngetik
     - [ ] tab/autocomplete hanya jalan ketika lagi ngetik argumen kedua, ketiga dll. Ketika sedang mengetik argument pertama (command), autocomplete tidak jalan, atau diganti bukan ke list of content of the directory, tapi ke command-commandnya.
+- [ ] implement command history with panah atas bawah
 
 ## Other apps
 

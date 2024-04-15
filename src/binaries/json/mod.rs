@@ -1,7 +1,7 @@
 pub mod app;
 mod ui;
 
-use super::Runnable;
+use super::{AppResult, Runnable};
 use crate::binaries::json::app::App;
 
 pub struct Json {
@@ -9,13 +9,13 @@ pub struct Json {
 }
 
 impl Runnable for Json {
-    fn run(&mut self) -> Result<(), String> {
+    fn run(&mut self) -> AppResult<()> {
         match self.app.run_app() {
             Ok(_) => match self.app.print_json() {
                 Ok(_) => Ok(()),
-                Err(err) => Err(err.to_string()),
+                Err(err) => Err(Box::new(err)),
             },
-            Err(err) => Err(err.to_string()),
+            Err(err) => Err(Box::new(err)),
         }
     }
 }

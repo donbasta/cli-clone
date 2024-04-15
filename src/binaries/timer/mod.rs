@@ -1,7 +1,7 @@
 pub mod app;
 mod ui;
 
-use super::Runnable;
+use super::{AppResult, Runnable};
 use crate::binaries::timer::app::App;
 
 pub struct Timer {
@@ -9,10 +9,10 @@ pub struct Timer {
 }
 
 impl Runnable for Timer {
-    fn run(&mut self) -> Result<(), String> {
+    fn run(&mut self) -> AppResult<()> {
         match self.app.run_app() {
             Ok(_) => Ok(()),
-            Err(err) => Err(err.to_string()),
+            Err(err) => Err(Box::new(err)),
         }
     }
 }

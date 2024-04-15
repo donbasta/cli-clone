@@ -3,16 +3,16 @@ use std::fs;
 
 use crate::cmd::CMD;
 
-use super::Runnable;
+use super::{AppResult, Runnable};
 
 pub struct Ls<'a> {
     vars: &'a mut CMD,
 }
 
 impl<'a> Runnable for Ls<'a> {
-    fn run(&mut self) -> Result<(), String> {
+    fn run(&mut self) -> AppResult<()> {
         if self.vars.get_tokens_length() > 2 {
-            return Err("Too many arguments for ls".to_string());
+            return Err("Too many arguments for ls".to_string().into());
         }
 
         let mut fpath = self.vars.get_current_dir_path().clone();
@@ -36,7 +36,7 @@ impl<'a> Runnable for Ls<'a> {
                 }
                 Ok(())
             }
-            Err(err) => Err(err.to_string()),
+            Err(err) => Err(Box::new(err)),
         }
     }
 }

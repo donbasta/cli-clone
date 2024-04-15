@@ -4,14 +4,14 @@ use colored::Colorize;
 
 use crate::cmd::CMD;
 
-use super::Runnable;
+use super::{AppResult, Runnable};
 
 pub struct Cat<'a> {
     vars: &'a CMD,
 }
 
 impl<'a> Runnable for Cat<'a> {
-    fn run(&mut self) -> Result<(), String> {
+    fn run(&mut self) -> AppResult<()> {
         for i in 1..self.vars.get_tokens_length() {
             let mut fpath = self.vars.get_current_dir_path().clone();
             fpath.push(self.vars.get_token(i));
