@@ -45,6 +45,9 @@
   - can make some kind of role play idk bruh, atau create a story
 - [ ] create a farm!
   - cats, dogs, etc (just like the cat in vscode extension)
+- [ ] simple games 1: sudoku
+- [ ] simple games 2: teka-teki silang
+- [ ] simple games 3: conway game of life
 
 ## Others
 
