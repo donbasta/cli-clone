@@ -13,3 +13,5 @@ crossterm = "0.27.0"
 ratatui = "0.26.1"
 rusqlite = { version = "0.31.0", features = ["bundled"] }
 serde_json = "1.0.115"
+collision_detection = { git = "https://github.com/kriskw1999/collision-detector" }
+rand = "0.8"

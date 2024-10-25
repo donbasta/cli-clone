@@ -1,5 +1,7 @@
 use std::error;
 
+use snake::Snake;
+
 use crate::cmd::CMD;
 
 use self::{
@@ -15,6 +17,7 @@ mod json;
 mod ls;
 mod man;
 mod pwd;
+mod snake;
 mod timer;
 mod todo;
 mod touch;
@@ -37,6 +40,7 @@ pub enum BinEnum<'a> {
     Counter(Counter),
     Timer(Timer),
     Json(Json),
+    Snake(Snake),
 }
 
 impl<'a> BinEnum<'a> {
@@ -53,6 +57,7 @@ impl<'a> BinEnum<'a> {
             "counter" => Ok(BinEnum::Counter(Counter::new())),
             "timer" => Ok(BinEnum::Timer(Timer::new())),
             "json" => Ok(BinEnum::Json(Json::new())),
+            "snake" => Ok(BinEnum::Snake(Snake::new())),
             &_ => Err(format!(
                 "Error: Command {} not found, see 'man' for help",
                 command
@@ -75,6 +80,7 @@ impl<'a> Runnable for BinEnum<'a> {
             BinEnum::Counter(counter) => counter.run(),
             BinEnum::Timer(timer) => timer.run(),
             BinEnum::Json(json) => json.run(),
+            BinEnum::Snake(snake) => snake.run(),
         }
     }
 }
