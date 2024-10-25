@@ -72,25 +72,25 @@ impl CMD {
     }
 
     pub fn empty(&self) -> bool {
-        return self.tokens.len() == 0;
+        self.tokens.is_empty()
     }
 
     pub fn get_first_token(&self) -> &str {
-        return &self.tokens[0];
+        &self.tokens[0]
     }
 
     pub fn get_tokens_length(&self) -> usize {
-        return self.tokens.len();
+        self.tokens.len()
     }
 
     pub fn get_chars(&self) -> &Vec<char> {
-        return &self.chars;
+        &self.chars
     }
 
     pub fn display_header(&self) {
         print!(
             "{}",
-            format!(" {} ", Local::now().format("%Y-%m-%d %H:%M:%S").to_string())
+            format!(" {} ", Local::now().format("%Y-%m-%d %H:%M:%S"))
                 .black()
                 .on_bright_yellow()
         );
@@ -106,11 +106,11 @@ impl CMD {
     }
 
     pub fn get_token(&self, idx: usize) -> &str {
-        return &self.tokens[idx];
+        &self.tokens[idx]
     }
 
     pub fn get_current_dir_path(&self) -> &PathBuf {
-        return &self.current_dir_path;
+        &self.current_dir_path
     }
 
     pub fn set_current_dir_path(&mut self, path_buf: PathBuf) {
@@ -133,7 +133,7 @@ impl CMD {
                 Ok(_) => {}
                 Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
             },
-            Err(err) => eprintln!("Error: {}", format!("{}", err).red()),
+            Err(err) => eprintln!("Error: {}", err.to_string().red()),
         }
     }
 

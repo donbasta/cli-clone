@@ -20,6 +20,12 @@ impl Runnable for Json {
     }
 }
 
+impl Default for Json {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Json {
     pub fn new() -> Self {
         Self { app: App::new() }

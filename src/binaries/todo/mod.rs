@@ -40,9 +40,7 @@ impl<'a> Todo<'a> {
     fn insert(&self, activity: Vec<Activity>) -> AppResult<()> {
         match Connection::open(DB_PATH) {
             Ok(conn) => {
-                if let Err(err) = Self::create_table_if_not_exists(&conn, TABLE_NAME) {
-                    return Err(err);
-                }
+                Self::create_table_if_not_exists(&conn, TABLE_NAME)?;
 
                 let query = format!("INSERT INTO {} (name) VALUES (?1)", TABLE_NAME);
 
@@ -64,9 +62,7 @@ impl<'a> Todo<'a> {
     fn query_all(&self) -> AppResult<()> {
         match Connection::open(DB_PATH) {
             Ok(conn) => {
-                if let Err(err) = Self::create_table_if_not_exists(&conn, TABLE_NAME) {
-                    return Err(err);
-                }
+                Self::create_table_if_not_exists(&conn, TABLE_NAME)?;
 
                 if let Ok(mut stmt) = conn.prepare(&format!("SELECT * FROM {}", TABLE_NAME)) {
                     if let Ok(activity_iter) = stmt.query_map([], |row| {
@@ -93,12 +89,12 @@ impl<'a> Todo<'a> {
                                 Err(_) => {}
                             }
                         }
-                        return Ok(());
+                        Ok(())
                     } else {
-                        return Err("Error: Query Map Failed".to_string().into());
+                        Err("Error: Query Map Failed".to_string().into())
                     }
                 } else {
-                    return Err("Error: Query Statement Failed".to_string().into());
+                    Err("Error: Query Statement Failed".to_string().into())
                 }
             }
             Err(err) => Err(Box::new(err)),
@@ -107,9 +103,7 @@ impl<'a> Todo<'a> {
     fn update_done(&self, indices: Vec<u64>) -> AppResult<()> {
         match Connection::open(DB_PATH) {
             Ok(conn) => {
-                if let Err(err) = Self::create_table_if_not_exists(&conn, TABLE_NAME) {
-                    return Err(err);
-                }
+                Self::create_table_if_not_exists(&conn, TABLE_NAME)?;
 
                 let query = format!("UPDATE {} SET is_done = TRUE WHERE id = ?1", TABLE_NAME);
 
@@ -131,9 +125,7 @@ impl<'a> Todo<'a> {
     fn update_undone(&self, indices: Vec<u64>) -> AppResult<()> {
         match Connection::open(DB_PATH) {
             Ok(conn) => {
-                if let Err(err) = Self::create_table_if_not_exists(&conn, TABLE_NAME) {
-                    return Err(err);
-                }
+                Self::create_table_if_not_exists(&conn, TABLE_NAME)?;
 
                 let query = format!("UPDATE {} SET is_done = FALSE WHERE id = ?1", TABLE_NAME);
 
@@ -155,9 +147,7 @@ impl<'a> Todo<'a> {
     fn remove(&self, indices: Vec<u64>) -> AppResult<()> {
         match Connection::open(DB_PATH) {
             Ok(conn) => {
-                if let Err(err) = Self::create_table_if_not_exists(&conn, TABLE_NAME) {
-                    return Err(err);
-                }
+                Self::create_table_if_not_exists(&conn, TABLE_NAME)?;
 
                 let query = format!("DELETE FROM {} WHERE id = ?1", TABLE_NAME);
 
@@ -196,7 +186,7 @@ impl<'a> Runnable for Todo<'a> {
                         id: 0, name: self.vars.get_token(idx).to_owned(), is_done: false
                     });
                 }
-                return self.insert(activities_to_add);
+                self.insert(activities_to_add)
             },
             "get" | "list" => self.query_all(),
             "do" | "undo" => {

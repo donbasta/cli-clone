@@ -80,7 +80,7 @@ impl StatefulList {
         self.state.select(Some(self.items.len() - 1));
     }
     pub fn get_selected_index(&self) -> Option<usize> {
-        return self.state.selected();
+        self.state.selected()
     }
 }
 

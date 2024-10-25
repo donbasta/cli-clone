@@ -44,6 +44,12 @@ impl Runnable for Counter {
     }
 }
 
+impl Default for Counter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Counter {
     pub fn new() -> Self {
         Self {

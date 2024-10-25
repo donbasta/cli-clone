@@ -26,7 +26,7 @@ impl<'a> Runnable for Cd<'a> {
                     },
                     &_ => {
                         let absolute_path = match dest {
-                            dest if dest.starts_with("/") => PathBuf::from(dest.to_string()),
+                            dest if dest.starts_with('/') => PathBuf::from(dest.to_string()),
                             dest if dest.starts_with("./") => {
                                 let mut abs_path = self.vars.get_current_dir_path().clone();
                                 abs_path.push(&dest.to_string().leak()[2..]);
@@ -49,7 +49,7 @@ impl<'a> Runnable for Cd<'a> {
                             }
                             &_ => {
                                 let mut abs_path = self.vars.get_current_dir_path().clone();
-                                abs_path.push(dest.to_string());
+                                abs_path.push(dest);
                                 abs_path
                             }
                         };

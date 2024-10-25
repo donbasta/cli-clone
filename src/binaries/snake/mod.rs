@@ -26,6 +26,12 @@ impl Runnable for Snake {
     }
 }
 
+impl Default for Snake {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Snake {
     pub fn new() -> Self {
         Self { app: App::new() }

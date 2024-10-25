@@ -18,7 +18,7 @@ impl<'a> Runnable for Touch<'a> {
         }
 
         let fpath = self.vars.get_token(1);
-        if fpath.ends_with("/") {
+        if fpath.ends_with('/') {
             return Err("touch: can't create directory with touch"
                 .to_string()
                 .into());
@@ -28,10 +28,10 @@ impl<'a> Runnable for Touch<'a> {
             "." | ".." => Ok(()),
             &_ => {
                 let absolute_path = match fpath {
-                    fpath if fpath.starts_with("/") => PathBuf::from(fpath.to_string()),
+                    fpath if fpath.starts_with('/') => PathBuf::from(fpath.to_string()),
                     &_ => {
                         let mut abs_path = self.vars.get_current_dir_path().clone();
-                        abs_path.push(fpath.to_string());
+                        abs_path.push(fpath);
                         abs_path
                     }
                 };
@@ -44,9 +44,7 @@ impl<'a> Runnable for Touch<'a> {
                                 .open(&absolute_path)
                             {
                                 Ok(_) => Ok(()),
-                                Err(err) => {
-                                    return Err(Box::new(err));
-                                }
+                                Err(err) => Err(Box::new(err)),
                             }
                         } else {
                             Err("touch: directory does not exist".to_string().into())

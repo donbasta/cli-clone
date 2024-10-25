@@ -38,11 +38,8 @@ impl<'a> Runnable for Man<'a> {
         .collect();
 
         if self.vars.get_tokens_length() == 1 {
-            println!(
-                "{}",
-                "For more detailed manual for each command, type 'man <command name>'"
-            );
-            println!("");
+            println!("For more detailed manual for each command, type 'man <command name>'");
+            println!();
             println!("{}", MANUAL);
             Ok(())
         } else if self.vars.get_tokens_length() == 2 {
